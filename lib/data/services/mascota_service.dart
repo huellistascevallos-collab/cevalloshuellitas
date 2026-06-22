@@ -60,24 +60,27 @@ class MascotaService {
   }
 
   /// Sube una imagen a Supabase Storage y retorna la URL pública.
+  /// Lanza una excepción si algo falla, para que el controller pueda
+  /// mostrar el error al usuario en lugar de silenciarlo.
   Future<String?> subirImagenMascota(File imagen, String extension) async {
+    final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final ruta = 'mascotas/$fileName';
+
     try {
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
-      final ruta = 'mascotas/$fileName';
-      
       await _client.storage.from('mascotas_imagenes').upload(
             ruta,
             imagen,
             fileOptions: const FileOptions(cacheControl: '3600', upsert: false),
           );
-
-      final String publicUrl =
-          _client.storage.from('mascotas_imagenes').getPublicUrl(ruta);
-      
-      return publicUrl;
     } catch (e) {
-      debugPrint('Error subiendo imagen: $e');
-      return null;
+      debugPrint('Error al subir imagen a Supabase Storage: $e');
+      // Re-lanzamos para que el controller lo capture y notifique a la UI
+      rethrow;
     }
+
+    final String publicUrl =
+        _client.storage.from('mascotas_imagenes').getPublicUrl(ruta);
+
+    return publicUrl;
   }
 }

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -202,6 +203,36 @@ class AuthService {
     } catch (e) {
       debugPrint('Error al crear perfil veterinario: $e');
     }
+  }
+
+  /// Envía un correo de recuperación de contraseña al email indicado.
+  Future<void> enviarRecuperacionContrasena(String correo) async {
+    await _client.auth.resetPasswordForEmail(correo.trim());
+  }
+
+  /// Sube la foto de perfil del usuario a Supabase Storage
+  /// y actualiza el campo `usua_foto_url` en la tabla `usuarios`.
+  /// Lanza excepción si algo falla.
+  Future<String> subirFotoUsuario(String userId, File imagen, String extension) async {
+    final fileName = '${userId}_${DateTime.now().millisecondsSinceEpoch}.$extension';
+    final ruta = 'perfiles/$fileName';
+
+    await _client.storage.from('usuarios_imagenes').upload(
+          ruta,
+          imagen,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+        );
+
+    final String publicUrl =
+        _client.storage.from('usuarios_imagenes').getPublicUrl(ruta);
+
+    // Guardar la URL en la tabla usuarios
+    await _client
+        .from('usuarios')
+        .update({'usua_foto_url': publicUrl})
+        .eq('usua_id', userId);
+
+    return publicUrl;
   }
 
   /// Retorna el usuario autenticado actualmente, o null si no hay sesión.

@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso para acceder a imágenes en Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- Permiso para acceder a almacenamiento en Android < 13 -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Permiso de internet para subir a Supabase -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="aplicacion"
         android:name="${applicationName}"

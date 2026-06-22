@@ -5,12 +5,13 @@ import '../models/veterinario_model.dart';
 class VeterinarioService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  /// Obtiene todos los veterinarios registrados.
+  /// Obtiene todos los veterinarios registrados, con la foto de perfil
+  /// del usuario asociado (usua_foto_url).
   Future<List<VeterinarioModel>> obtenerTodos() async {
     try {
       final response = await _client
           .from('veterinarios')
-          .select()
+          .select('*, usuarios(usua_nombre, usua_foto_url)')
           .order('vete_id');
       return (response as List)
           .map((e) => VeterinarioModel.fromJson(e))
@@ -26,7 +27,7 @@ class VeterinarioService {
     try {
       final response = await _client
           .from('veterinarios')
-          .select()
+          .select('*, usuarios(usua_nombre, usua_foto_url)')
           .eq('usua_id', usuarioId)
           .maybeSingle();
       if (response == null) return null;

@@ -18,6 +18,11 @@ class VeterinarioModel {
   });
 
   factory VeterinarioModel.fromJson(Map<String, dynamic> json) {
+    final usuario = json['usuarios'] as Map<String, dynamic>?;
+    // La foto real viene de usua_foto_url (tabla usuarios).
+    // vete_foto_url queda como fallback por compatibilidad.
+    final fotoUrl = usuario?['usua_foto_url'] as String? ??
+        json['vete_foto_url'] as String?;
     return VeterinarioModel(
       id: json['vete_id']?.toString() ?? '',
       usuarioId: json['usua_id']?.toString() ?? '',
@@ -26,7 +31,7 @@ class VeterinarioModel {
       tarifa: json['vete_tarifa'] != null
           ? double.tryParse(json['vete_tarifa'].toString())
           : null,
-      fotoUrl: json['vete_foto_url'] as String?,
+      fotoUrl: fotoUrl,
       disponible: json['vete_disponible'] as bool? ?? true,
     );
   }

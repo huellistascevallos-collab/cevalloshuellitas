@@ -18,7 +18,6 @@ import 'presentation/screens/veterinario/vet_perfil_screen.dart';
 import 'presentation/screens/usuario/mis_mascotas_screen.dart';
 import 'presentation/screens/usuario/adopciones_screen.dart';
 import 'presentation/screens/usuario/servicios_screen.dart';
-import 'presentation/screens/veterinario/nuevo_paciente_screen.dart';
 import 'presentation/screens/veterinario/urgencias_screen.dart';
 import 'presentation/screens/usuario/perfil_screen.dart';
 import 'presentation/screens/splash_screen.dart';
@@ -28,7 +27,7 @@ void main() async {
 
   await Supabase.initialize(
     url: supabaseUrl,
-    publishableKey: supabaseAnonKey,
+    anonKey: supabaseAnonKey,
   );
 
   runApp(
@@ -80,7 +79,7 @@ class MyApp extends StatelessWidget {
         '/mis_mascotas': (context) => const MisMascotasScreen(),
         '/adopciones': (context) => const AdopcionesScreen(),
         '/servicios': (context) => const ServiciosScreen(),
-        '/nuevo_paciente': (context) => const NuevoPacienteScreen(),
+
         '/urgencias': (context) => const UrgenciasScreen(),
         '/perfil': (context) => const PerfilScreen(),
         '/vet_citas': (context) => const VetCitasScreen(),

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/usuario_model.dart';
@@ -150,6 +151,40 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sube la foto de perfil del usuario y actualiza el estado local.
+  Future<bool> subirFotoUsuario(File imagen, String extension) async {
+    if (_currentUser == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final url = await _authService.subirFotoUsuario(
+        _currentUser!.id,
+        imagen,
+        extension,
+      );
+      _currentUser = UsuarioModel(
+        id: _currentUser!.id,
+        nombre: _currentUser!.nombre,
+        correo: _currentUser!.correo,
+        telefono: _currentUser!.telefono,
+        rol: _currentUser!.rol,
+        fechaRegistro: _currentUser!.fechaRegistro,
+        fotoUrl: url,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al subir la foto: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Actualiza el perfil del usuario actual (nombre y teléfono).
   Future<bool> updateProfile(String nombre, String telefono) async {
     if (_currentUser == null) return false;
@@ -167,6 +202,7 @@ class AuthController extends ChangeNotifier {
         telefono: telefono,
         rol: _currentUser!.rol,
         fechaRegistro: _currentUser!.fechaRegistro,
+        fotoUrl: _currentUser!.fotoUrl,
       );
       _isLoading = false;
       notifyListeners();
@@ -196,12 +232,32 @@ class AuthController extends ChangeNotifier {
         telefono: _currentUser!.telefono,
         rol: nuevoRol,
         fechaRegistro: _currentUser!.fechaRegistro,
+        fotoUrl: _currentUser!.fotoUrl,
       );
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = 'Error al cambiar el rol: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Envía un correo de restablecimiento de contraseña.
+  /// Retorna `true` si se envió correctamente, `false` si hubo error.
+  Future<bool> recuperarContrasena(String correo) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _authService.enviarRecuperacionContrasena(correo.trim());
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'No se pudo enviar el correo. Verifica la dirección.';
       _isLoading = false;
       notifyListeners();
       return false;

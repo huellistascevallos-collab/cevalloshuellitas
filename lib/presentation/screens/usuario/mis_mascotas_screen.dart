@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -381,6 +382,21 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
   Future<void> _seleccionarImagen() async {
     final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      final extension = pickedFile.path.split('.').last.toLowerCase();
+      const formatosPermitidos = ['jpg', 'jpeg', 'png', 'webp'];
+      if (!formatosPermitidos.contains(extension)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Formato no permitido: .$extension\nSolo se aceptan: JPG, JPEG, PNG, WEBP',
+              ),
+              backgroundColor: Colors.redAccent,
+            ),
+          );
+        }
+        return;
+      }
       setState(() {
         _imagenFisica = File(pickedFile.path);
       });
@@ -403,13 +419,38 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
       return;
     }
 
+    // Validar rango de edad
+    final edadVal = int.tryParse(_edadController.text.trim());
+    if (edadVal == null || edadVal < 0 || edadVal > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La edad debe ser un número entre 0 y 100.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     // Subir imagen si se seleccionó
     String? fotoUrl = widget.mascota?.fotoUrl;
     if (_imagenFisica != null) {
-      final extension = _imagenFisica!.path.split('.').last;
-      fotoUrl = await context
-          .read<MascotaController>()
-          .subirImagenMascota(_imagenFisica!, extension);
+      final ext = _imagenFisica!.path.split('.').last.toLowerCase();
+      // Capturamos el controller antes del await para evitar usar context
+      // después de un posible desmontaje del widget
+      final controller = context.read<MascotaController>();
+      fotoUrl = await controller.subirImagenMascota(_imagenFisica!, ext);
+
+      if (!mounted) return;
+
+      if (fotoUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(controller.errorMessage ?? 'Error al subir la imagen'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
     }
 
     final nuevaMascota = MascotaModel(
@@ -501,7 +542,11 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
               const SizedBox(height: 14),
 
               _buildInputField('Edad (ej. 3)', _edadController, Icons.cake_outlined,
-                  keyboardType: TextInputType.number),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    _MaxValueFormatter(100),
+                  ]),
               const SizedBox(height: 14),
 
               _buildDropdown('Género', _genero, ['Macho', 'Hembra'],
@@ -600,10 +645,12 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
     TextEditingController controller,
     IconData icon, {
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF2D2D2D)),
       decoration: InputDecoration(
         labelText: label,
@@ -656,6 +703,23 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
         onChanged: onChanged,
       ),
     );
+  }
+}
+
+// ────────────────────────────────────────────────
+// Formatter: limita el valor numérico a un máximo
+// ────────────────────────────────────────────────
+class _MaxValueFormatter extends TextInputFormatter {
+  final int max;
+  _MaxValueFormatter(this.max);
+
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    if (newValue.text.isEmpty) return newValue;
+    final val = int.tryParse(newValue.text);
+    if (val == null || val > max) return oldValue;
+    return newValue;
   }
 }
 

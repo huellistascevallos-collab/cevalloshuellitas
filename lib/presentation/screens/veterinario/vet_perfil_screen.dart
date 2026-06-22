@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/veterinario_model.dart';
 import '../../../domain/controllers/auth_controller.dart';
@@ -101,18 +103,7 @@ class _VetPerfilScreenState extends State<VetPerfilScreen> {
                 ),
                 // Avatar + nombre
                 Column(children: [
-                  Container(
-                    width: 88, height: 88,
-                    decoration: BoxDecoration(
-                      color: Colors.white, shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white, width: 3),
-                      boxShadow: [BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.15),
-                          blurRadius: 14)],
-                    ),
-                    child: const Icon(Icons.person_rounded,
-                        size: 52, color: Color(0xFF1CB5C9)),
-                  ),
+                  _VetAvatarPicker(fotoUrl: user?.fotoUrl),
                   const SizedBox(height: 10),
                   Text(
                     'Dr. ${user?.nombre ?? 'Veterinario'}',
@@ -885,4 +876,126 @@ class _HeaderClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
+}
+
+// ────────────────────────────────────────────────
+// Widget: Avatar con selector de foto (veterinario)
+// ────────────────────────────────────────────────
+class _VetAvatarPicker extends StatefulWidget {
+  final String? fotoUrl;
+  const _VetAvatarPicker({this.fotoUrl});
+
+  @override
+  State<_VetAvatarPicker> createState() => _VetAvatarPickerState();
+}
+
+class _VetAvatarPickerState extends State<_VetAvatarPicker> {
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _seleccionarFoto() async {
+    final XFile? picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+    if (!mounted) return;
+
+    final extension = picked.path.split('.').last.toLowerCase();
+    const formatosPermitidos = ['jpg', 'jpeg', 'png', 'webp'];
+    if (!formatosPermitidos.contains(extension)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Formato no permitido: .$extension\nSolo se aceptan: JPG, JPEG, PNG, WEBP',
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final authController = context.read<AuthController>();
+    final ok = await authController.subirFotoUsuario(File(picked.path), extension);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(ok
+            ? 'Foto actualizada correctamente'
+            : (authController.errorMessage ?? 'Error al subir foto')),
+        backgroundColor: ok ? const Color(0xFF1CB5C9) : Colors.redAccent,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fotoUrl = context.select<AuthController, String?>(
+      (c) => c.currentUser?.fotoUrl,
+    );
+    final isLoading =
+        context.select<AuthController, bool>((c) => c.isLoading);
+
+    return GestureDetector(
+      onTap: isLoading ? null : _seleccionarFoto,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          Container(
+            width: 90,
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 14),
+              ],
+            ),
+            child: ClipOval(
+              child: isLoading
+                  ? const Center(
+                      child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(
+                          color: Color(0xFF1CB5C9),
+                          strokeWidth: 2.5,
+                        ),
+                      ),
+                    )
+                  : (fotoUrl != null && fotoUrl.isNotEmpty)
+                      ? Image.network(
+                          fotoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.person_rounded,
+                            size: 52,
+                            color: Color(0xFF1CB5C9),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.person_rounded,
+                          size: 52,
+                          color: Color(0xFF1CB5C9),
+                        ),
+            ),
+          ),
+          // Ícono de cámara
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1CB5C9),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+            ),
+            child: const Icon(Icons.camera_alt_rounded,
+                size: 14, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
 }

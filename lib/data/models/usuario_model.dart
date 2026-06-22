@@ -5,6 +5,7 @@ class UsuarioModel {
   final String? telefono;
   final String rol;
   final DateTime? fechaRegistro;
+  final String? fotoUrl; // usua_foto_url
 
   UsuarioModel({
     required this.id,
@@ -13,6 +14,7 @@ class UsuarioModel {
     this.telefono,
     required this.rol,
     this.fechaRegistro,
+    this.fotoUrl,
   });
 
   /// Crea una instancia de [UsuarioModel] a partir de un mapa JSON
@@ -27,10 +29,10 @@ class UsuarioModel {
       fechaRegistro: json['usua_fecha_registro'] != null
           ? DateTime.parse(json['usua_fecha_registro'] as String)
           : null,
+      fotoUrl: json['usua_foto_url'] as String?,
     );
   }
 
-  /// Convierte la instancia a un mapa JSON compatible con la tabla `usuarios`.
   Map<String, dynamic> toJson() {
     return {
       'usua_id': id,
@@ -38,6 +40,7 @@ class UsuarioModel {
       'usua_correo': correo,
       'usua_telefono': telefono,
       'usua_rol': rol,
+      if (fotoUrl != null) 'usua_foto_url': fotoUrl,
     };
   }
 }

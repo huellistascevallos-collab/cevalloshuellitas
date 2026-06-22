@@ -308,7 +308,13 @@ class _ServiciosScreenState extends State<ServiciosScreen>
               shape: BoxShape.circle,
               border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
             ),
-            child: Icon(Icons.person_outline_rounded, size: 30, color: color),
+            child: ClipOval(
+              child: (v.fotoUrl != null && v.fotoUrl!.isNotEmpty)
+                  ? Image.network(v.fotoUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(Icons.person_outline_rounded, size: 30, color: color))
+                  : Icon(Icons.person_outline_rounded, size: 30, color: color),
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -546,7 +552,13 @@ class _VeterinariosServicioSheet extends StatelessWidget {
               border: Border.all(
                   color: color.withValues(alpha: 0.3), width: 1.5),
             ),
-            child: Icon(Icons.person_outline_rounded, size: 26, color: color),
+            child: ClipOval(
+              child: (vsm.fotoUrl != null && vsm.fotoUrl!.isNotEmpty)
+                  ? Image.network(vsm.fotoUrl!, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Icon(Icons.person_outline_rounded, size: 26, color: color))
+                  : Icon(Icons.person_outline_rounded, size: 26, color: color),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

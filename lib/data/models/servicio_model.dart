@@ -89,6 +89,10 @@ class VeterinarioServicioModel {
   factory VeterinarioServicioModel.fromJson(Map<String, dynamic> json) {
     final vet = json['veterinarios'] as Map<String, dynamic>?;
     final usuario = vet?['usuarios'] as Map<String, dynamic>?;
+    // La foto viene de usua_foto_url (tabla usuarios), que es donde se guarda
+    // al subir desde la app. vete_foto_url queda como fallback por compatibilidad.
+    final fotoUrl = usuario?['usua_foto_url'] as String? ??
+        vet?['vete_foto_url'] as String?;
     return VeterinarioServicioModel(
       id: json['vese_id']?.toString() ?? '',
       veteId: json['vete_id']?.toString() ?? '',
@@ -103,7 +107,7 @@ class VeterinarioServicioModel {
       tarifa: vet?['vete_tarifa'] != null
           ? double.tryParse(vet!['vete_tarifa'].toString())
           : null,
-      fotoUrl: vet?['vete_foto_url'] as String?,
+      fotoUrl: fotoUrl,
       disponible: vet?['vete_disponible'] as bool? ?? true,
     );
   }
