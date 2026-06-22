@@ -83,7 +83,11 @@ class _LoginScreenState extends State<LoginScreen>
       _passwordController.text,
     );
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (authController.currentUser?.rol == 'veterinario') {
+        Navigator.pushReplacementNamed(context, '/vet_home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
 
@@ -91,7 +95,11 @@ class _LoginScreenState extends State<LoginScreen>
     final authController = context.read<AuthController>();
     final success = await authController.loginWithGoogle();
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (authController.currentUser?.rol == 'veterinario') {
+        Navigator.pushReplacementNamed(context, '/vet_home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
 

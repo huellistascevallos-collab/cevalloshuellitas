@@ -10,11 +10,13 @@ class AuthController extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
+  bool _isInitializing = true;
   String? _errorMessage;
   UsuarioModel? _currentUser;
 
   // Getters
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
   UsuarioModel? get currentUser => _currentUser;
   bool get isAuthenticated => _authService.isAuthenticated;
@@ -129,15 +131,23 @@ class AuthController extends ChangeNotifier {
 
   /// Intenta restaurar la sesión anterior al abrir la app.
   Future<void> tryRestoreSession() async {
+    _isInitializing = true;
+    notifyListeners();
+
     final userId = _authService.getCurrentUserId();
     if (userId != null) {
       try {
         _currentUser = await _authService.getUserProfile(userId);
-        notifyListeners();
-      } catch (_) {
-        // Si falla, el usuario deberá hacer login de nuevo
+      } catch (e) {
+        debugPrint('Error al restaurar sesión: $e');
       }
     }
+
+    // Espera un pequeño tiempo mínimo para reproducir el GIF (1.2 segundos)
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    _isInitializing = false;
+    notifyListeners();
   }
 
   /// Mapea mensajes de error de Supabase Auth a mensajes en español.

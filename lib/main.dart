@@ -7,6 +7,8 @@ import 'domain/controllers/auth_controller.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/register_screen.dart';
 import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/vet_home_screen.dart';
+import 'presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,7 +43,13 @@ class MyApp extends StatelessWidget {
       ),
       home: Consumer<AuthController>(
         builder: (context, authController, _) {
+          if (authController.isInitializing) {
+            return const SplashScreen();
+          }
           if (authController.isAuthenticated) {
+            if (authController.currentUser?.rol == 'veterinario') {
+              return const VetHomeScreen();
+            }
             return const HomeScreen();
           }
           return const LoginScreen();
@@ -51,6 +59,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
+        '/vet_home': (context) => const VetHomeScreen(),
       },
     );
   }
