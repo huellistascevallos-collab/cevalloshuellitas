@@ -1,5 +1,7 @@
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/usuario_model.dart';
+import '../../supabase_config.dart';
 
 /// Servicio de autenticación que conecta con Supabase Auth
 /// y la tabla `usuarios` para gestionar perfiles.
@@ -68,6 +70,76 @@ class AuthService {
     // Obtener el perfil desde la tabla usuarios
     final profile = await getUserProfile(authResponse.user!.id);
     return profile;
+  }
+
+  /// Inicia sesión con Google usando el ID Token de Google y Supabase.
+  ///
+  /// Retorna el [UsuarioModel] del usuario autenticado.
+  /// Si es la primera vez que el usuario inicia con Google, crea su perfil
+  /// automáticamente en la tabla `usuarios`.
+  Future<UsuarioModel> signInWithGoogle() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      // serverClientId es el Web Client ID de Google Cloud Console.
+      // En Android NO se usa clientId (ese es solo para iOS).
+      // Este ID permite obtener el idToken necesario para Supabase.
+      serverClientId: googleWebClientId,
+      scopes: ['email', 'profile'],
+    );
+
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) {
+      throw Exception('Inicio de sesión con Google cancelado.');
+    }
+
+    final googleAuth = await googleUser.authentication;
+    final idToken = googleAuth.idToken;
+    if (idToken == null) {
+      throw Exception('No se pudo obtener el token de Google.');
+    }
+
+    // Autenticar en Supabase con el ID Token de Google
+    final authResponse = await _client.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+      accessToken: googleAuth.accessToken,
+    );
+
+    if (authResponse.user == null) {
+      throw Exception('No se pudo autenticar con Google en Supabase.');
+    }
+
+    final userId = authResponse.user!.id;
+
+    // Verificar si el perfil ya existe en la tabla usuarios
+    final existing = await _client
+        .from('usuarios')
+        .select()
+        .eq('usua_id', userId)
+        .maybeSingle();
+
+    if (existing == null) {
+      // Primera vez con Google: crear perfil en la tabla usuarios
+      final nombre = googleUser.displayName ?? googleUser.email.split('@').first;
+      final correo = googleUser.email;
+
+      await _client.from('usuarios').insert({
+        'usua_id': userId,
+        'usua_nombre': nombre,
+        'usua_correo': correo,
+        'usua_telefono': null,
+        'usua_rol': 'usuario',
+      });
+
+      return UsuarioModel(
+        id: userId,
+        nombre: nombre,
+        correo: correo,
+        telefono: null,
+        rol: 'usuario',
+      );
+    }
+
+    return UsuarioModel.fromJson(existing);
   }
 
   /// Cierra la sesión actual del usuario.

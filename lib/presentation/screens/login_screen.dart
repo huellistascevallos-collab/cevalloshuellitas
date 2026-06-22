@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -13,50 +14,82 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  late AnimationController _animController;
+
+  late AnimationController _entranceController;
+  late AnimationController _formExpandController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
+  late Animation<double> _formAnim;
+
+  bool _showEmailForm = false;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
+
+    _entranceController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 900),
     );
+    _formExpandController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+
     _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOut),
+      CurvedAnimation(parent: _entranceController, curve: Curves.easeOut),
     );
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 0.25),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: _animController, curve: Curves.easeOutCubic),
+      CurvedAnimation(parent: _entranceController, curve: Curves.easeOutCubic),
     );
-    _animController.forward();
+    _formAnim = CurvedAnimation(
+      parent: _formExpandController,
+      curve: Curves.easeInOut,
+    );
+
+    _entranceController.forward();
   }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _animController.dispose();
+    _entranceController.dispose();
+    _formExpandController.dispose();
     super.dispose();
+  }
+
+  void _toggleEmailForm() {
+    setState(() => _showEmailForm = !_showEmailForm);
+    if (_showEmailForm) {
+      _formExpandController.forward();
+    } else {
+      _formExpandController.reverse();
+    }
   }
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
     final authController = context.read<AuthController>();
     final success = await authController.login(
       _emailController.text,
       _passwordController.text,
     );
+    if (success && mounted) {
+      Navigator.pushReplacementNamed(context, '/home');
+    }
+  }
 
+  Future<void> _handleGoogleLogin() async {
+    final authController = context.read<AuthController>();
+    final success = await authController.loginWithGoogle();
     if (success && mounted) {
       Navigator.pushReplacementNamed(context, '/home');
     }
@@ -65,283 +98,530 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFFF6B35),
-              Color(0xFFFF8F5E),
-              Color(0xFFFFA06B),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: FadeTransition(
-                opacity: _fadeAnim,
-                child: SlideTransition(
-                  position: _slideAnim,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo / Icono
-                      Container(
-                        width: 100,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            width: 2,
+      backgroundColor: const Color(0xFFF5F3FF),
+      body: Stack(
+        children: [
+          // Fondo con ondas decorativas
+          const _WaveBackground(),
+
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnim,
+              child: SlideTransition(
+                position: _slideAnim,
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 56),
+
+                        // Logo de la app
+                        Image.asset(
+                          'asest/logohome.png',
+                          width: 150,
+                          height: 150,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 22),
+
+                        // Título
+                        Text(
+                          'Huellitas',
+                          style: GoogleFonts.poppins(
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF1A1A2E),
+                            letterSpacing: 0.5,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.pets_rounded,
-                          size: 50,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Título
-                      Text(
-                        'Huellitas',
-                        style: GoogleFonts.poppins(
-                          fontSize: 36,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Cuidamos a quienes no tienen voz',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.85),
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-
-                      // Card del formulario
-                      Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(28),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 30,
-                              offset: const Offset(0, 15),
-                            ),
-                          ],
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                'Iniciar Sesión',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF2D2D2D),
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Ingresa tus credenciales para continuar',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: 28),
-
-                              // Campo Email
-                              CustomTextField(
-                                label: 'Correo electrónico',
-                                icon: Icons.email_outlined,
-                                controller: _emailController,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Ingresa tu correo electrónico';
-                                  }
-                                  if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$')
-                                      .hasMatch(value.trim())) {
-                                    return 'Ingresa un correo válido';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 18),
-
-                              // Campo Contraseña
-                              CustomTextField(
-                                label: 'Contraseña',
-                                icon: Icons.lock_outline_rounded,
-                                controller: _passwordController,
-                                obscureText: true,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Ingresa tu contraseña';
-                                  }
-                                  if (value.length < 6) {
-                                    return 'Mínimo 6 caracteres';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: 28),
-
-                              // Mensaje de error
-                              Consumer<AuthController>(
-                                builder: (context, auth, _) {
-                                  if (auth.errorMessage != null) {
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(bottom: 16),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFEBEE),
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: const Color(0xFFEF9A9A),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.error_outline_rounded,
-                                              color: Color(0xFFE53935),
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Expanded(
-                                              child: Text(
-                                                auth.errorMessage!,
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 13,
-                                                  color:
-                                                      const Color(0xFFE53935),
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
-
-                              // Botón Login
-                              Consumer<AuthController>(
-                                builder: (context, auth, _) {
-                                  return SizedBox(
-                                    height: 56,
-                                    child: ElevatedButton(
-                                      onPressed:
-                                          auth.isLoading ? null : _handleLogin,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor:
-                                            const Color(0xFFFF6B35),
-                                        foregroundColor: Colors.white,
-                                        elevation: 0,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        disabledBackgroundColor:
-                                            const Color(0xFFFF6B35)
-                                                .withValues(alpha: 0.6),
-                                      ),
-                                      child: auth.isLoading
-                                          ? const SizedBox(
-                                              height: 24,
-                                              width: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2.5,
-                                                color: Colors.white,
-                                              ),
-                                            )
-                                          : Text(
-                                              'Iniciar Sesión',
-                                              style: GoogleFonts.poppins(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
+                        const SizedBox(height: 4),
+                        Text(
+                          'Inicio de sesión',
+                          style: GoogleFonts.poppins(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF1A1A2E),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
+                        const SizedBox(height: 44),
 
-                      // Link a registro
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '¿No tienes cuenta? ',
-                            style: GoogleFonts.poppins(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontSize: 14,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
+                        // Botón: Correos con email
+                        _MethodButton(
+                          icon: Icons.email_outlined,
+                          label: 'Correos con email',
+                          onTap: _toggleEmailForm,
+                          isActive: _showEmailForm,
+                        ),
+
+                        // Formulario expandible de email/password
+                        SizeTransition(
+                          sizeFactor: _formAnim,
+                          child: FadeTransition(
+                            opacity: _formAnim,
+                            child: _EmailForm(
+                              formKey: _formKey,
+                              emailController: _emailController,
+                              passwordController: _passwordController,
+                              onLogin: _handleLogin,
+                              onRegister: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(
                                   builder: (_) => const RegisterScreen(),
                                 ),
-                              );
-                            },
-                            child: Text(
-                              'Crear cuenta',
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                decoration: TextDecoration.underline,
-                                decorationColor: Colors.white,
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-                    ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Botón: Iniciar con Google
+                        _GoogleButton(onTap: _handleGoogleLogin),
+                        const SizedBox(height: 14),
+
+                        // Mensaje de error global
+                        Consumer<AuthController>(
+                          builder: (context, auth, _) {
+                            if (auth.errorMessage != null) {
+                              return Container(
+                                margin: const EdgeInsets.only(top: 4, bottom: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFEBEE),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                      color: const Color(0xFFEF9A9A)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline_rounded,
+                                        color: Color(0xFFE53935), size: 18),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        auth.errorMessage!,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: const Color(0xFFE53935),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Footer: Crear cuenta
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RegisterScreen(),
+                            ),
+                          ),
+                          child: Text(
+                            '¿No tienes cuenta? Crear cuenta',
+                            style: GoogleFonts.poppins(
+                              fontSize: 13,
+                              color: const Color(0xFF7C6FCD),
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                              decorationColor: const Color(0xFF7C6FCD),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────
+// Widget: Botón de método de ingreso
+// ────────────────────────────────────────────────
+class _MethodButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isActive;
+
+  const _MethodButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: double.infinity,
+        height: 58,
+        decoration: BoxDecoration(
+          color: isActive
+              ? const Color(0xFF7C6FCD).withOpacity(0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive
+                ? const Color(0xFF7C6FCD)
+                : const Color(0xFFE0DCFF),
+            width: isActive ? 1.8 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF7C6FCD).withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            const SizedBox(width: 20),
+            Icon(
+              icon,
+              size: 22,
+              color: isActive
+                  ? const Color(0xFF7C6FCD)
+                  : const Color(0xFF555555),
+            ),
+            const SizedBox(width: 14),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: isActive
+                    ? const Color(0xFF7C6FCD)
+                    : const Color(0xFF2D2D2D),
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              isActive ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+              color: const Color(0xFFAAAAAA),
+              size: 20,
+            ),
+            const SizedBox(width: 16),
+          ],
         ),
       ),
     );
   }
+}
+
+// ────────────────────────────────────────────────
+// Widget: Botón de Google
+// ────────────────────────────────────────────────
+class _GoogleButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _GoogleButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthController>(
+      builder: (context, auth, _) {
+        return GestureDetector(
+          onTap: auth.isLoading ? null : onTap,
+          child: Container(
+            width: double.infinity,
+            height: 58,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFE0DCFF),
+                width: 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF7C6FCD).withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                auth.isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      )
+                    : SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CustomPaint(
+                          painter: _GoogleLogoPainter(),
+                        ),
+                      ),
+                const SizedBox(width: 14),
+                Text(
+                  'Iniciar con Google',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF2D2D2D),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ────────────────────────────────────────────────
+// Widget: Formulario expandible email/password
+// ────────────────────────────────────────────────
+class _EmailForm extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final VoidCallback onLogin;
+  final VoidCallback onRegister;
+
+  const _EmailForm({
+    required this.formKey,
+    required this.emailController,
+    required this.passwordController,
+    required this.onLogin,
+    required this.onRegister,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE0DCFF), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF7C6FCD).withOpacity(0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CustomTextField(
+              label: 'Correo electrónico',
+              icon: Icons.email_outlined,
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Ingresa tu correo electrónico';
+                }
+                if (!RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$')
+                    .hasMatch(value.trim())) {
+                  return 'Ingresa un correo válido';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            CustomTextField(
+              label: 'Contraseña',
+              icon: Icons.lock_outline_rounded,
+              controller: passwordController,
+              obscureText: true,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Ingresa tu contraseña';
+                }
+                if (value.length < 6) return 'Mínimo 6 caracteres';
+                return null;
+              },
+            ),
+            const SizedBox(height: 20),
+            Consumer<AuthController>(
+              builder: (context, auth, _) {
+                return SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: auth.isLoading ? null : onLogin,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C6FCD),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      disabledBackgroundColor:
+                          const Color(0xFF7C6FCD).withOpacity(0.5),
+                    ),
+                    child: auth.isLoading
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(
+                            'Ingresar',
+                            style: GoogleFonts.poppins(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────
+// CustomPainter: Fondo con ondas lavanda
+// ────────────────────────────────────────────────
+class _WaveBackground extends StatelessWidget {
+  const _WaveBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox.expand(
+      child: CustomPaint(
+        painter: _WavePainter(),
+      ),
+    );
+  }
+}
+
+class _WavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintTop = Paint()
+      ..color = const Color(0xFFDDD6FF).withOpacity(0.55)
+      ..style = PaintingStyle.fill;
+
+    final paintBottom = Paint()
+      ..color = const Color(0xFFE8E3FF).withOpacity(0.4)
+      ..style = PaintingStyle.fill;
+
+    final paintAccent = Paint()
+      ..color = const Color(0xFFC4B5FD).withOpacity(0.25)
+      ..style = PaintingStyle.fill;
+
+    // Blob superior izquierdo
+    final pathTop = Path()
+      ..moveTo(0, 0)
+      ..cubicTo(size.width * 0.15, -size.height * 0.04,
+          size.width * 0.55, size.height * 0.05, size.width * 0.4, size.height * 0.22)
+      ..cubicTo(size.width * 0.28, size.height * 0.32,
+          -size.width * 0.05, size.height * 0.25, 0, size.height * 0.15)
+      ..close();
+    canvas.drawPath(pathTop, paintTop);
+
+    // Blob superior derecho
+    final pathTopRight = Path()
+      ..moveTo(size.width, 0)
+      ..cubicTo(size.width * 0.85, size.height * 0.02,
+          size.width * 0.65, size.height * 0.12, size.width * 0.75, size.height * 0.28)
+      ..cubicTo(size.width * 0.82, size.height * 0.38,
+          size.width * 1.05, size.height * 0.3, size.width, size.height * 0.18)
+      ..close();
+    canvas.drawPath(pathTopRight, paintAccent);
+
+    // Blob inferior izquierdo
+    final pathBottomLeft = Path()
+      ..moveTo(0, size.height)
+      ..cubicTo(size.width * 0.05, size.height * 0.82,
+          size.width * 0.25, size.height * 0.78, size.width * 0.2, size.height * 0.88)
+      ..cubicTo(size.width * 0.15, size.height * 0.95,
+          size.width * 0.08, size.height * 1.02, 0, size.height)
+      ..close();
+    canvas.drawPath(pathBottomLeft, paintAccent);
+
+    // Blob inferior derecho grande
+    final pathBottom = Path()
+      ..moveTo(size.width, size.height)
+      ..cubicTo(size.width * 0.85, size.height * 0.92,
+          size.width * 0.55, size.height * 0.88, size.width * 0.6, size.height * 0.75)
+      ..cubicTo(size.width * 0.65, size.height * 0.65,
+          size.width * 1.08, size.height * 0.7, size.width, size.height * 0.85)
+      ..close();
+    canvas.drawPath(pathBottom, paintBottom);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+// ────────────────────────────────────────────────
+// CustomPainter: Logo de Google
+// ────────────────────────────────────────────────
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+
+    final colors = [
+      const Color(0xFF4285F4),
+      const Color(0xFF34A853),
+      const Color(0xFFFBBC05),
+      const Color(0xFFEA4335),
+    ];
+
+    for (int i = 0; i < 4; i++) {
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        -math.pi / 2 + (math.pi / 2) * i,
+        math.pi / 2,
+        true,
+        Paint()..color = colors[i],
+      );
+    }
+
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r * 0.58,
+      Paint()..color = Colors.white,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

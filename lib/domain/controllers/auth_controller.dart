@@ -48,6 +48,37 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Intenta iniciar sesión con Google.
+  ///
+  /// Retorna `true` si el login fue exitoso, `false` en caso contrario.
+  Future<bool> loginWithGoogle() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _currentUser = await _authService.signInWithGoogle();
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = _mapAuthError(e.message);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('cancelado')) {
+        _errorMessage = null; // El usuario canceló, no es un error
+      } else {
+        _errorMessage = 'Error al iniciar sesión con Google.';
+      }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Registra un nuevo usuario con los datos proporcionados.
   ///
   /// Retorna `true` si el registro fue exitoso, `false` en caso contrario.

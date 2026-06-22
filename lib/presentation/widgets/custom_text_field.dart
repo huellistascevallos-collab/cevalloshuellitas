@@ -1,16 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Campo de texto personalizado reutilizable con diseño premium.
-///
-/// Uso:
-/// ```dart
-/// CustomTextField(
-///   label: 'Correo electrónico',
-///   icon: Icons.email_outlined,
-///   controller: _emailController,
-///   keyboardType: TextInputType.emailAddress,
-/// )
-/// ```
+/// Campo de texto personalizado reutilizable con diseño premium tema Huellitas.
 class CustomTextField extends StatefulWidget {
   final String label;
   final IconData? icon;
@@ -60,7 +50,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         prefixIcon: widget.icon != null
             ? Icon(
                 widget.icon,
-                color: const Color(0xFFFF6B35),
+                color: const Color(0xFF7C6FCD),
                 size: 22,
               )
             : null,
@@ -81,7 +71,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
               )
             : null,
         filled: true,
-        fillColor: const Color(0xFFF8F9FA),
+        fillColor: const Color(0xFFF8F7FF),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 18,
@@ -93,14 +83,14 @@ class _CustomTextFieldState extends State<CustomTextField> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: Colors.grey.shade200,
-            width: 1.5,
+            color: const Color(0xFFE0DCFF),
+            width: 1.2,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(
-            color: Color(0xFFFF6B35),
+            color: Color(0xFF7C6FCD),
             width: 2,
           ),
         ),

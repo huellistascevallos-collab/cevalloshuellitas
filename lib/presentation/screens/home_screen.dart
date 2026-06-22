@@ -12,315 +12,438 @@ class HomeScreen extends StatelessWidget {
     final user = authController.currentUser;
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFF6B35),
-              Color(0xFFFF8F5E),
-            ],
-            stops: [0.0, 0.3],
+      backgroundColor: const Color(0xFFF5F6FA), // Fondo gris claro de la parte inferior
+      body: Stack(
+        children: [
+          // ── Cabecera Turquesa Curva ──
+          ClipPath(
+            clipper: _HeaderClipper(),
+            child: Container(
+              height: 380, // Altura ajustada para incluir cabecera, buscador y botones
+              width: double.infinity,
+              color: const Color(0xFF1CB5C9), // Color turquesa de la imagen
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 30),
-                child: Row(
-                  children: [
-                    // Avatar
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.25),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.4),
-                          width: 2,
-                        ),
+
+          SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── AppBar Custom ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Menú (usaremos un icono que abre un drawer o logout por ahora)
+                      IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white, size: 28),
+                        onPressed: () {
+                          // Acción del menú
+                        },
                       ),
-                      child: Center(
-                        child: Text(
-                          user?.nombre.isNotEmpty == true
-                              ? user!.nombre[0].toUpperCase()
-                              : '?',
-                          style: GoogleFonts.poppins(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Título con logo
+                      Row(
                         children: [
+                          const Icon(Icons.pets, color: Colors.white, size: 28),
+                          const SizedBox(width: 8),
                           Text(
-                            '¡Bienvenido! 🐾',
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.85),
-                            ),
-                          ),
-                          Text(
-                            user?.nombre ?? 'Usuario',
+                            'Huellitas Cevallos',
                             style: GoogleFonts.poppins(
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
                               color: Colors.white,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
+                      // Campana de notificaciones
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 28),
+                            onPressed: () {},
+                          ),
+                          Positioned(
+                            right: 8,
+                            top: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFE58D57), // Color naranja del badge
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '1',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          )
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ── Buscador ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                  child: Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(25),
                     ),
-                    // Botón logout
-                    IconButton(
-                      onPressed: () async {
-                        await authController.logout();
-                        if (context.mounted) {
-                          Navigator.pushReplacementNamed(context, '/login');
-                        }
-                      },
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.logout_rounded,
-                          color: Colors.white,
-                          size: 22,
-                        ),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Buscar',
+                        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 15),
+                        prefixIcon: Icon(Icons.search, color: Colors.grey.shade400),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 15),
                       ),
                     ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // ── Grid de Categorías ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildCategoryItem(Icons.pets_rounded, 'Mis\nMascotas'),
+                      _buildCategoryItem(Icons.volunteer_activism_rounded, 'Adopciones'),
+                      _buildCategoryItem(Icons.medical_services_outlined, 'Servicios'),
+                      _buildCategoryItem(Icons.assignment_rounded, 'Control\nSanitario'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 15),
+                // Indicadores de carrusel (dots)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildDot(true),
+                    _buildDot(false),
+                    _buildDot(false),
+                    _buildDot(false),
                   ],
                 ),
-              ),
+                const SizedBox(height: 35),
 
-              // Body
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF5F6FA),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(32),
-                      topRight: Radius.circular(32),
-                    ),
-                  ),
+                // ── Contenido Inferior (Scrollable) ──
+                Expanded(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    physics: const BouncingScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Panel Principal',
-                          style: GoogleFonts.poppins(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF2D2D2D),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Gestiona mascotas, citas y más',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey.shade500,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Info del usuario
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.04),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                        // Título Mascotas Destacadas
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.person_rounded,
-                                    color: Color(0xFFFF6B35),
-                                    size: 22,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Text(
-                                    'Mi Perfil',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF2D2D2D),
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'Mascotas Destacadas',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF2D2D2D),
+                                ),
                               ),
-                              const Divider(height: 24),
-                              _buildInfoRow(
-                                  Icons.badge_outlined, 'Nombre', user?.nombre),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(Icons.email_outlined, 'Correo',
-                                  user?.correo),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(Icons.phone_outlined, 'Teléfono',
-                                  user?.telefono ?? 'No registrado'),
-                              const SizedBox(height: 12),
-                              _buildInfoRow(Icons.shield_outlined, 'Rol',
-                                  _formatRol(user?.rol)),
+                              Text(
+                                'Ver All',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF1CB5C9),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Lista horizontal de mascotas destacadas
+                        SizedBox(
+                          height: 220,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            physics: const BouncingScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            children: [
+                              _buildPetCard('Darria', Icons.pets), // Usando icono en lugar de imagen
+                              _buildPetCard('Cota', Icons.pets),
+                              _buildPetCard('Firulais', Icons.pets),
                             ],
                           ),
                         ),
                         const SizedBox(height: 20),
 
-                        // Grid de acciones rápidas
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.1,
-                          children: [
-                            _buildQuickAction(
-                              icon: Icons.pets_rounded,
-                              title: 'Mascotas',
-                              subtitle: 'Ver disponibles',
-                              color: const Color(0xFFFF6B35),
+                        // ── Botón ¡Adopta Hoy! ──
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Container(
+                            width: double.infinity,
+                            height: 65,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE58D57), // Naranja
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFFE58D57).withOpacity(0.3),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
                             ),
-                            _buildQuickAction(
-                              icon: Icons.favorite_rounded,
-                              title: 'Adopciones',
-                              subtitle: 'Mis solicitudes',
-                              color: const Color(0xFFE91E63),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {},
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '¡Adopta Hoy!',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    const Icon(Icons.volunteer_activism, color: Colors.white, size: 30),
+                                  ],
+                                ),
+                              ),
                             ),
-                            _buildQuickAction(
-                              icon: Icons.calendar_today_rounded,
-                              title: 'Citas',
-                              subtitle: 'Agendar cita',
-                              color: const Color(0xFF4CAF50),
-                            ),
-                            _buildQuickAction(
-                              icon: Icons.medical_services_rounded,
-                              title: 'Veterinarios',
-                              subtitle: 'Buscar',
-                              color: const Color(0xFF2196F3),
-                            ),
-                          ],
+                          ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 100), // Espacio extra para el bottom nav bar flotante
                       ],
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+
+          // ── Bottom Navigation Bar Custom ──
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildBottomNavigationBar(),
+          ),
+
+          // ── Botón Flotante Central (Corazón con huella) ──
+          Positioned(
+            bottom: 25,
+            left: MediaQuery.of(context).size.width / 2 - 35,
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1CB5C9),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFF5F6FA), width: 6), // Borde color de fondo para simular el "cutout"
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1CB5C9).withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.favorite, color: Colors.white, size: 32),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String label, String? value) {
-    return Row(
+  Widget _buildCategoryItem(IconData icon, String label) {
+    return Column(
       children: [
-        Icon(icon, size: 18, color: Colors.grey.shade400),
-        const SizedBox(width: 10),
-        Text(
-          '$label: ',
-          style: GoogleFonts.poppins(
-            fontSize: 13,
-            color: Colors.grey.shade500,
+        Container(
+          width: 65,
+          height: 65,
+          decoration: BoxDecoration(
+            color: const Color(0xFF229AA8), // Color turquesa más oscuro para el botón
+            borderRadius: BorderRadius.circular(16),
           ),
+          child: Icon(icon, color: Colors.white, size: 35),
         ),
-        Expanded(
-          child: Text(
-            value ?? '—',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF2D2D2D),
-            ),
-            overflow: TextOverflow.ellipsis,
+        const SizedBox(height: 8),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            height: 1.1,
           ),
         ),
       ],
     );
   }
 
-  String _formatRol(String? rol) {
-    if (rol == null) return '—';
-    return rol[0].toUpperCase() + rol.substring(1);
+  Widget _buildDot(bool active) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 3),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: active ? Colors.white : Colors.white.withOpacity(0.4),
+        shape: BoxShape.circle,
+      ),
+    );
   }
 
-  Widget _buildQuickAction({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
+  Widget _buildPetCard(String name, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      width: 150,
+      margin: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 5),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: color, size: 26),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: const Color(0xFF2D2D2D),
+          // Imagen / Icono de la mascota
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE8F6F8), // Fondo suave turquesa
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Icon(icon, size: 80, color: const Color(0xFF1CB5C9)),
             ),
           ),
-          Text(
-            subtitle,
-            style: GoogleFonts.poppins(
-              fontSize: 12,
-              color: Colors.grey.shade500,
+          // Info y botón
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF2D2D2D),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1CB5C9),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Ver Perfil',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          IconButton(icon: const Icon(Icons.home, color: Color(0xFF1CB5C9), size: 30), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.calendar_today_outlined, color: Colors.grey, size: 26), onPressed: () {}),
+          const SizedBox(width: 50), // Espacio para el botón flotante central
+          IconButton(icon: const Icon(Icons.add_box_outlined, color: Colors.grey, size: 28), onPressed: () {}),
+          Consumer<AuthController>(
+            builder: (context, authController, _) => IconButton(
+              icon: const Icon(Icons.person_outline, color: Colors.grey, size: 30),
+              onPressed: () async {
+                await authController.logout();
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────
+// Custom Clipper: Para la curva del fondo turquesa
+// ────────────────────────────────────────────────
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    path.lineTo(0, size.height - 40); // Inicia un poco más arriba
+
+    // Crea una curva cóncava
+    path.quadraticBezierTo(
+      size.width / 2, size.height + 10, // Punto de control (abajo al centro)
+      size.width, size.height - 40,     // Punto final (derecha)
+    );
+
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
