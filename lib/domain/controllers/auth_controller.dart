@@ -41,7 +41,8 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      _errorMessage = 'Error inesperado. Intenta de nuevo.';
+      debugPrint('Error en login: $e');
+      _errorMessage = 'Error inesperado: $e';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -110,7 +111,8 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      _errorMessage = 'Error al crear la cuenta. Intenta de nuevo.';
+      debugPrint('Error en registro: $e');
+      _errorMessage = 'Error al crear la cuenta: $e';
       _isLoading = false;
       notifyListeners();
       return false;
