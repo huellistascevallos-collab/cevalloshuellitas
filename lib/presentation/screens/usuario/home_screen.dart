@@ -113,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 leading: Container(
                                   width: 60, height: 60,
                                   decoration: BoxDecoration(
-                                    color: m.color.withOpacity(0.12),
+                                    color: m.color.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(14),
                                   ),
                                   child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
@@ -176,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 140,
                         height: 140,
                         decoration: BoxDecoration(
-                          color: mascota.color.withOpacity(0.12),
+                          color: mascota.color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
@@ -196,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6)],
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6)],
                             ),
                             child: Icon(
                               esFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -279,7 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -456,7 +456,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFFE58D57).withOpacity(0.3),
+                                  color: const Color(0xFFE58D57).withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4),
                                 ),
@@ -518,7 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   border: Border.all(color: const Color(0xFFF5F6FA), width: 6),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF1CB5C9).withOpacity(0.3),
+                      color: const Color(0xFF1CB5C9).withValues(alpha: 0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -569,7 +569,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: 8,
       height: 8,
       decoration: BoxDecoration(
-        color: active ? Colors.white : Colors.white.withOpacity(0.4),
+        color: active ? Colors.white : Colors.white.withValues(alpha: 0.4),
         shape: BoxShape.circle,
       ),
     );
@@ -584,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen> {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -597,7 +597,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: mascota.color.withOpacity(0.12),
+                color: mascota.color.withValues(alpha: 0.12),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(20),
                   topRight: Radius.circular(20),
@@ -670,7 +670,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, -5),
           ),

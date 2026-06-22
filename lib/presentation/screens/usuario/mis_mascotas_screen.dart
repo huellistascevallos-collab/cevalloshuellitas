@@ -98,7 +98,7 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
                         '${mascotas.length} mascotas registradas',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -172,7 +172,7 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -187,7 +187,7 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
                   width: 75,
                   height: 75,
                   decoration: BoxDecoration(
-                    color: mascota.color.withOpacity(0.12),
+                    color: mascota.color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
@@ -317,7 +317,7 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

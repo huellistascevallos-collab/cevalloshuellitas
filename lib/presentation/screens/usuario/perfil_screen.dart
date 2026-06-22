@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../data/models/mascota_model.dart';
+import '../shared/historial_citas_screen.dart';
 
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
@@ -227,7 +228,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 12)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 12)],
                       ),
                       child: const Icon(Icons.person_rounded, size: 48, color: Color(0xFF1CB5C9)),
                     ),
@@ -241,7 +242,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -326,7 +327,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
                           icon: Icons.settings_outlined,
                           child: Column(
                             children: [
-                              _buildOptionRow(Icons.edit_outlined, 'Editar perfil', const Color(0xFF1CB5C9), () => _showEditProfileDialog(context)),
+                              _buildOptionRow(Icons.history_rounded, 'Historial de Citas', const Color(0xFF1CB5C9), () {
+                                final uid = context.read<AuthController>().currentUser?.id;
+                                if (uid != null) {
+                                  Navigator.push(context, MaterialPageRoute(
+                                    builder: (_) => HistorialCitasScreen(
+                                        modo: 'usuario', entityId: uid),
+                                  ));
+                                }
+                              }),
+                              const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                              _buildOptionRow(Icons.edit_outlined, 'Editar perfil', const Color(0xFF43B89C), () => _showEditProfileDialog(context)),
                               const Divider(height: 1, color: Color(0xFFF0F0F0)),
                               _buildOptionRow(Icons.notifications_outlined, 'Notificaciones', const Color(0xFF7C6FCD), () {}),
                               const Divider(height: 1, color: Color(0xFFF0F0F0)),
@@ -385,7 +396,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,12 +449,12 @@ class _PerfilScreenState extends State<PerfilScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 3))],
       ),
       child: Column(children: [
         Container(
           padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.12), shape: BoxShape.circle),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
           child: Icon(icon, color: color, size: 20),
         ),
         const SizedBox(height: 8),
@@ -462,7 +473,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       child: Row(children: [
         Container(
           width: 46, height: 46,
-          decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
           child: Icon(mascota.icon, size: 24, color: color),
         ),
         const SizedBox(width: 12),
@@ -474,7 +485,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ])),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
           child: Text(mascota.genero,
               style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
         ),
@@ -490,7 +501,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(9)),
             child: Icon(icon, size: 18, color: color),
           ),
           const SizedBox(width: 14),
@@ -531,6 +542,7 @@ class _EditProfileSheet extends StatefulWidget {
 class _EditProfileSheetState extends State<_EditProfileSheet> {
   late TextEditingController _nombreController;
   late TextEditingController _telefonoController;
+  late String _rolSeleccionado;
 
   @override
   void initState() {
@@ -538,6 +550,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final user = context.read<AuthController>().currentUser;
     _nombreController = TextEditingController(text: user?.nombre ?? '');
     _telefonoController = TextEditingController(text: user?.telefono ?? '');
+    _rolSeleccionado = user?.rol ?? 'usuario';
   }
 
   @override
@@ -557,27 +570,57 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       return;
     }
 
-    final success = await authController.updateProfile(
+    // Guardar nombre y teléfono
+    final okPerfil = await authController.updateProfile(
       _nombreController.text.trim(),
       _telefonoController.text.trim(),
     );
 
-    if (success && mounted) {
-      Navigator.pop(context); // Cerrar bottom sheet
+    if (!okPerfil) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authController.errorMessage ?? 'Error al actualizar perfil')),
+        );
+      }
+      return;
+    }
+
+    // Si cambió el rol, actualizarlo también
+    final rolActual = authController.currentUser?.rol ?? 'usuario';
+    if (_rolSeleccionado != rolActual) {
+      final okRol = await authController.updateRol(_rolSeleccionado);
+      if (!okRol && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(authController.errorMessage ?? 'Error al cambiar el rol')),
+        );
+        return;
+      }
+    }
+
+    if (mounted) {
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil actualizado correctamente')),
+        const SnackBar(
+          content: Text('Perfil actualizado correctamente'),
+          backgroundColor: Color(0xFF1CB5C9),
+        ),
       );
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authController.errorMessage ?? 'Error al actualizar perfil')),
-      );
+
+      // Redirigir según el nuevo rol
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        if (_rolSeleccionado == 'veterinario') {
+          Navigator.pushReplacementNamed(context, '/vet_home');
+        } else {
+          Navigator.pushReplacementNamed(context, '/home');
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
-    final user = authController.currentUser;
 
     return Container(
       padding: EdgeInsets.only(
@@ -625,23 +668,63 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
               _buildInputField('Teléfono', _telefonoController, Icons.phone_outlined, keyboardType: TextInputType.phone),
               const SizedBox(height: 14),
 
-              // Rol (Deshabilitado)
-              TextFormField(
-                initialValue: user?.rol == 'veterinario' ? 'Veterinario' : 'Usuario (Dueño de mascotas)',
-                enabled: false,
-                style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
-                decoration: InputDecoration(
-                  labelText: 'Rol',
-                  labelStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
-                  prefixIcon: const Icon(Icons.badge_outlined, color: Colors.grey, size: 20),
-                  filled: true,
-                  fillColor: Colors.grey.shade100,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
+              // Rol — selector funcional
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FAFB),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
+                ),
+                child: DropdownButtonFormField<String>(
+                  value: _rolSeleccionado,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    labelText: 'Rol',
+                    labelStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
+                    prefixIcon: const Icon(Icons.badge_outlined, color: Color(0xFF1CB5C9), size: 20),
                   ),
+                  style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF2D2D2D)),
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'usuario',
+                      child: Text('🐾  Usuario (Dueño de mascotas)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'veterinario',
+                      child: Text('🩺  Veterinario'),
+                    ),
+                  ],
+                  onChanged: (val) => setState(() => _rolSeleccionado = val!),
                 ),
               ),
+              const SizedBox(height: 8),
+              // Aviso informativo del cambio de rol
+              if (_rolSeleccionado != (context.read<AuthController>().currentUser?.rol ?? 'usuario'))
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF8E1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFBC02D).withValues(alpha: 0.5)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline_rounded,
+                        color: Color(0xFFFBC02D), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Al guardar serás redirigido al panel de $_rolSeleccionado.',
+                        style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: const Color(0xFFF57F17),
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ]),
+                ),
               const SizedBox(height: 24),
 
               // Botón guardar

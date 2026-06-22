@@ -120,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   boxShadow: [
                                     BoxShadow(
                                       color: const Color(0xFF7C6FCD)
-                                          .withOpacity(0.08),
+                                          .withValues(alpha: 0.08),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
                                     ),
@@ -180,7 +180,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                             boxShadow: [
                               BoxShadow(
                                 color:
-                                    const Color(0xFF7C6FCD).withOpacity(0.07),
+                                    const Color(0xFF7C6FCD).withValues(alpha: 0.07),
                                 blurRadius: 24,
                                 offset: const Offset(0, 10),
                               ),
@@ -389,7 +389,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                           ),
                                           disabledBackgroundColor:
                                               const Color(0xFF7C6FCD)
-                                                  .withOpacity(0.5),
+                                                  .withValues(alpha: 0.5),
                                         ),
                                         child: auth.isLoading
                                             ? const SizedBox(
@@ -453,15 +453,15 @@ class _RegisterWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintTop = Paint()
-      ..color = const Color(0xFFDDD6FF).withOpacity(0.5)
+      ..color = const Color(0xFFDDD6FF).withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
 
     final paintBottom = Paint()
-      ..color = const Color(0xFFE8E3FF).withOpacity(0.35)
+      ..color = const Color(0xFFE8E3FF).withValues(alpha: 0.35)
       ..style = PaintingStyle.fill;
 
     final paintAccent = Paint()
-      ..color = const Color(0xFFC4B5FD).withOpacity(0.2)
+      ..color = const Color(0xFFC4B5FD).withValues(alpha: 0.2)
       ..style = PaintingStyle.fill;
 
     final pathTop = Path()

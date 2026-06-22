@@ -61,7 +61,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                         width: 140,
                         height: 140,
                         decoration: BoxDecoration(
-                          color: mascota.color.withOpacity(0.12),
+                          color: mascota.color.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
@@ -80,7 +80,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 6)],
+                              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 6)],
                             ),
                             child: Icon(
                               esFav ? Icons.favorite_rounded : Icons.favorite_border_rounded,
@@ -165,7 +165,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   Widget _buildChip(String label, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -243,7 +243,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                           margin: const EdgeInsets.only(right: 8),
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                           decoration: BoxDecoration(
-                            color: activo ? Colors.white : Colors.white.withOpacity(0.25),
+                            color: activo ? Colors.white : Colors.white.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(_filtros[i],
@@ -305,7 +305,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
           decoration: BoxDecoration(
             color: Colors.white,
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2)),
             ],
           ),
           child: Column(
@@ -319,9 +319,9 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                     Container(
                       width: 44, height: 44,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         shape: BoxShape.circle,
-                        border: Border.all(color: color.withOpacity(0.4), width: 2),
+                        border: Border.all(color: color.withValues(alpha: 0.4), width: 2),
                       ),
                       child: Icon(mascota.icon, size: 24, color: color),
                     ),
@@ -337,7 +337,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                               const SizedBox(width: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)),
+                                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
                                 child: Text(mascota.especie,
                                     style: GoogleFonts.poppins(fontSize: 10, fontWeight: FontWeight.w700, color: color)),
                               ),
@@ -370,7 +370,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
               Container(
                 width: double.infinity,
                 height: 280,
-                color: color.withOpacity(0.08),
+                color: color.withValues(alpha: 0.08),
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -392,7 +392,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                           gradient: LinearGradient(
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
-                            colors: [Colors.black.withOpacity(0.45), Colors.transparent],
+                            colors: [Colors.black.withValues(alpha: 0.45), Colors.transparent],
                           ),
                         ),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -495,7 +495,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   Widget _buildInfoBadge(String label, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(12)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -512,9 +512,9 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
       alignment: Alignment.center,
       children: [
         Positioned.fill(
-          child: CustomPaint(painter: _PawPatternPainter(color: color.withOpacity(0.06))),
+          child: CustomPaint(painter: _PawPatternPainter(color: color.withValues(alpha: 0.06))),
         ),
-        Icon(icon, size: 120, color: color.withOpacity(0.5)),
+        Icon(icon, size: 120, color: color.withValues(alpha: 0.5)),
       ],
     );
   }

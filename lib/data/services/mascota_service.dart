@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/mascota_model.dart';
 
@@ -12,6 +13,14 @@ class MascotaService {
         .select()
         .eq('usua_id', usuarioId);
 
+    return (response as List<dynamic>)
+        .map((e) => MascotaModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Obtiene todas las mascotas (para el veterinario).
+  Future<List<MascotaModel>> obtenerTodasLasMascotas() async {
+    final response = await _client.from('mascotas').select().order('masc_nombre');
     return (response as List<dynamic>)
         .map((e) => MascotaModel.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -33,10 +42,9 @@ class MascotaService {
   Future<MascotaModel> crearMascota(MascotaModel mascota) async {
     final response = await _client
         .from('mascotas')
-        .insert(mascota.toJson())
+        .insert(mascota.toInsertJson())
         .select()
         .single();
-
     return MascotaModel.fromJson(response);
   }
 
@@ -44,11 +52,10 @@ class MascotaService {
   Future<MascotaModel> actualizarMascota(MascotaModel mascota) async {
     final response = await _client
         .from('mascotas')
-        .update(mascota.toJson())
+        .update(mascota.toUpdateJson())
         .eq('masc_id', mascota.id)
         .select()
         .single();
-
     return MascotaModel.fromJson(response);
   }
 
@@ -69,7 +76,7 @@ class MascotaService {
       
       return publicUrl;
     } catch (e) {
-      print('Error subiendo imagen: $e');
+      debugPrint('Error subiendo imagen: $e');
       return null;
     }
   }

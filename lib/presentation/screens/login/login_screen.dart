@@ -287,7 +287,7 @@ class _MethodButton extends StatelessWidget {
         height: 58,
         decoration: BoxDecoration(
           color: isActive
-              ? const Color(0xFF7C6FCD).withOpacity(0.08)
+              ? const Color(0xFF7C6FCD).withValues(alpha: 0.08)
               : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
@@ -298,7 +298,7 @@ class _MethodButton extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF7C6FCD).withOpacity(0.06),
+              color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -365,7 +365,7 @@ class _GoogleButton extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF7C6FCD).withOpacity(0.06),
+                  color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -434,7 +434,7 @@ class _EmailForm extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE0DCFF), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C6FCD).withOpacity(0.06),
+            color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -490,7 +490,7 @@ class _EmailForm extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       disabledBackgroundColor:
-                          const Color(0xFF7C6FCD).withOpacity(0.5),
+                          const Color(0xFF7C6FCD).withValues(alpha: 0.5),
                     ),
                     child: auth.isLoading
                         ? const SizedBox(
@@ -539,15 +539,15 @@ class _WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintTop = Paint()
-      ..color = const Color(0xFFDDD6FF).withOpacity(0.55)
+      ..color = const Color(0xFFDDD6FF).withValues(alpha: 0.55)
       ..style = PaintingStyle.fill;
 
     final paintBottom = Paint()
-      ..color = const Color(0xFFE8E3FF).withOpacity(0.4)
+      ..color = const Color(0xFFE8E3FF).withValues(alpha: 0.4)
       ..style = PaintingStyle.fill;
 
     final paintAccent = Paint()
-      ..color = const Color(0xFFC4B5FD).withOpacity(0.25)
+      ..color = const Color(0xFFC4B5FD).withValues(alpha: 0.25)
       ..style = PaintingStyle.fill;
 
     // Blob superior izquierdo

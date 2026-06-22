@@ -131,10 +131,10 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: Colors.white.withOpacity(0.4), width: 1),
+                              color: Colors.white.withValues(alpha: 0.4), width: 1),
                         ),
                         child: Row(
                           children: [
@@ -181,7 +181,7 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                           decoration: BoxDecoration(
                             color: activo
                                 ? Colors.white
-                                : Colors.white.withOpacity(0.2),
+                                : Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -250,7 +250,7 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
         border: Border(left: BorderSide(color: color, width: 5)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -267,7 +267,7 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(urgencia['icon'] as IconData,
@@ -303,7 +303,7 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.1),
+                        color: color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -333,7 +333,7 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.05),
+                color: color.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

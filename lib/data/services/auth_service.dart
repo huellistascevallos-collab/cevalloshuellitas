@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/usuario_model.dart';
@@ -41,6 +42,11 @@ class AuthService {
     };
 
     await _client.from('usuarios').insert(userData);
+
+    // Si se registra como veterinario, crear perfil en tabla veterinarios
+    if (rol == 'veterinario') {
+      await _crearPerfilVeterinarioSiNoExiste(userId);
+    }
 
     return UsuarioModel(
       id: userId,
@@ -158,12 +164,44 @@ class AuthService {
     return UsuarioModel.fromJson(response);
   }
 
-  /// Actualiza la información personal del usuario en la tabla `usuarios`.
+  /// Actualiza el rol del usuario en la tabla `usuarios`.
   Future<void> updateUserProfile(String userId, String nombre, String telefono) async {
     await _client.from('usuarios').update({
       'usua_nombre': nombre,
       'usua_telefono': telefono,
     }).eq('usua_id', userId);
+  }
+
+  /// Actualiza el rol del usuario en la tabla `usuarios`.
+  Future<void> updateUserRol(String userId, String nuevoRol) async {
+    await _client.from('usuarios').update({
+      'usua_rol': nuevoRol,
+    }).eq('usua_id', userId);
+
+    // Si el nuevo rol es veterinario, crear registro en tabla veterinarios
+    // solo si no existe ya uno
+    if (nuevoRol == 'veterinario') {
+      await _crearPerfilVeterinarioSiNoExiste(userId);
+    }
+  }
+
+  /// Crea un registro básico en la tabla `veterinarios` si no existe ya.
+  Future<void> _crearPerfilVeterinarioSiNoExiste(String userId) async {
+    try {
+      final existing = await _client
+          .from('veterinarios')
+          .select('vete_id')
+          .eq('usua_id', userId)
+          .maybeSingle();
+      if (existing == null) {
+        await _client.from('veterinarios').insert({
+          'usua_id': userId,
+          'vete_disponible': true,
+        });
+      }
+    } catch (e) {
+      debugPrint('Error al crear perfil veterinario: $e');
+    }
   }
 
   /// Retorna el usuario autenticado actualmente, o null si no hay sesión.

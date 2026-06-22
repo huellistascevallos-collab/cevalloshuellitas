@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
 class MascotaModel {
-  final String id;
-  final String usuarioId;
-  final String nombre;
-  final String especie;
-  final String raza;
-  final String genero;
-  final String edad;
-  final String estado;
-  final String? descripcion;
-  final String? fotoUrl;
+  final String id;         // masc_id
+  final String usuarioId;  // usua_id (dueño) — puede estar vacío si no aplica
+  final String nombre;     // masc_nombre
+  final String especie;    // masc_especie
+  final String raza;       // masc_raza
+  final String genero;     // masc_sexo
+  final String edad;       // masc_edad (INTEGER en DB, guardamos como String)
+  final String estado;     // masc_estado
+  final String? descripcion; // masc_descripcion
+  final String? fotoUrl;     // masc_foto_url
 
   MascotaModel({
     required this.id,
@@ -20,13 +20,11 @@ class MascotaModel {
     required this.raza,
     required this.genero,
     required this.edad,
-    this.estado = 'propio', // Valor por defecto
+    this.estado = 'Disponible',
     this.descripcion,
     this.fotoUrl,
   });
 
-  /// Crea una instancia de [MascotaModel] a partir de un mapa JSON
-  /// que proviene de la tabla `mascotas` en Supabase.
   factory MascotaModel.fromJson(Map<String, dynamic> json) {
     return MascotaModel(
       id: json['masc_id']?.toString() ?? '',
@@ -34,47 +32,60 @@ class MascotaModel {
       nombre: json['masc_nombre'] as String? ?? '',
       especie: json['masc_especie'] as String? ?? '',
       raza: json['masc_raza'] as String? ?? '',
-      genero: json['masc_sexo'] as String? ?? '', // Corregido a masc_sexo
-      edad: json['masc_edad']?.toString() ?? '', // Parseado desde int
-      estado: json['masc_estado'] as String? ?? 'propio',
+      genero: json['masc_sexo'] as String? ?? '',
+      edad: json['masc_edad']?.toString() ?? '',
+      estado: json['masc_estado'] as String? ?? 'Disponible',
       descripcion: json['masc_descripcion'] as String?,
       fotoUrl: json['masc_foto_url'] as String?,
     );
   }
 
-  /// Convierte la instancia a un mapa JSON compatible con la tabla `mascotas`.
-  Map<String, dynamic> toJson() {
+  /// Para INSERT — nunca incluye masc_id
+  Map<String, dynamic> toInsertJson() {
     return {
-      if (id.isNotEmpty) 'masc_id': id,
-      'usua_id': usuarioId, // AVISO: Asegúrate de que esta columna exista en tu DB
+      if (usuarioId.isNotEmpty) 'usua_id': usuarioId,
       'masc_nombre': nombre,
-      'masc_especie': especie,
-      'masc_raza': raza,
-      'masc_sexo': genero, // Corregido a masc_sexo
-      'masc_edad': int.tryParse(edad) ?? 0, // Convertido a INTEGER
+      if (especie.isNotEmpty) 'masc_especie': especie,
+      if (raza.isNotEmpty) 'masc_raza': raza,
+      'masc_edad': int.tryParse(edad) ?? 0,
+      if (genero.isNotEmpty) 'masc_sexo': genero,
+      if (descripcion != null && descripcion!.isNotEmpty)
+        'masc_descripcion': descripcion,
+      if (fotoUrl != null && fotoUrl!.isNotEmpty) 'masc_foto_url': fotoUrl,
       'masc_estado': estado,
-      if (descripcion != null) 'masc_descripcion': descripcion,
-      if (fotoUrl != null) 'masc_foto_url': fotoUrl,
     };
   }
 
-  /// Retorna un IconData representativo según la especie
+  /// Para UPDATE
+  Map<String, dynamic> toUpdateJson() {
+    return {
+      'masc_nombre': nombre,
+      'masc_especie': especie.isNotEmpty ? especie : null,
+      'masc_raza': raza.isNotEmpty ? raza : null,
+      'masc_edad': int.tryParse(edad) ?? 0,
+      'masc_sexo': genero.isNotEmpty ? genero : null,
+      'masc_descripcion':
+          descripcion?.isNotEmpty == true ? descripcion : null,
+      'masc_foto_url': fotoUrl?.isNotEmpty == true ? fotoUrl : null,
+      'masc_estado': estado,
+    };
+  }
+
   IconData get icon {
-    final especieLower = especie.toLowerCase();
-    if (especieLower.contains('perro')) return Icons.pets;
-    if (especieLower.contains('gato')) return Icons.catching_pokemon;
-    if (especieLower.contains('ave')) return Icons.flutter_dash;
-    if (especieLower.contains('conejo')) return Icons.cruelty_free;
+    final e = especie.toLowerCase();
+    if (e.contains('perro')) return Icons.pets;
+    if (e.contains('gato')) return Icons.catching_pokemon;
+    if (e.contains('ave') || e.contains('pájaro')) return Icons.flutter_dash;
+    if (e.contains('conejo')) return Icons.cruelty_free;
     return Icons.pets;
   }
 
-  /// Retorna un Color representativo según la especie
   Color get color {
-    final especieLower = especie.toLowerCase();
-    if (especieLower.contains('perro')) return const Color(0xFF1CB5C9);
-    if (especieLower.contains('gato')) return const Color(0xFFE58D57);
-    if (especieLower.contains('ave')) return const Color(0xFF7C6FCD);
-    if (especieLower.contains('conejo')) return const Color(0xFF43B89C);
+    final e = especie.toLowerCase();
+    if (e.contains('perro')) return const Color(0xFF1CB5C9);
+    if (e.contains('gato')) return const Color(0xFFE58D57);
+    if (e.contains('ave') || e.contains('pájaro')) return const Color(0xFF7C6FCD);
+    if (e.contains('conejo')) return const Color(0xFF43B89C);
     return const Color(0xFF1CB5C9);
   }
 }

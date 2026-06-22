@@ -10,11 +10,13 @@ class AuthController extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
   bool _isLoading = false;
+  bool _isInitializing = true;
   String? _errorMessage;
   UsuarioModel? _currentUser;
 
   // Getters
   bool get isLoading => _isLoading;
+  bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
   UsuarioModel? get currentUser => _currentUser;
   bool get isAuthenticated => _authService.isAuthenticated;
@@ -41,7 +43,8 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      _errorMessage = 'Error inesperado. Intenta de nuevo.';
+      debugPrint('Error en login: $e');
+      _errorMessage = 'Error inesperado: $e';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -110,7 +113,8 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return false;
     } catch (e) {
-      _errorMessage = 'Error al crear la cuenta. Intenta de nuevo.';
+      debugPrint('Error en registro: $e');
+      _errorMessage = 'Error al crear la cuenta: $e';
       _isLoading = false;
       notifyListeners();
       return false;
@@ -127,15 +131,23 @@ class AuthController extends ChangeNotifier {
 
   /// Intenta restaurar la sesión anterior al abrir la app.
   Future<void> tryRestoreSession() async {
+    _isInitializing = true;
+    notifyListeners();
+
     final userId = _authService.getCurrentUserId();
     if (userId != null) {
       try {
         _currentUser = await _authService.getUserProfile(userId);
-        notifyListeners();
-      } catch (_) {
-        // Si falla, el usuario deberá hacer login de nuevo
+      } catch (e) {
+        debugPrint('Error al restaurar sesión: $e');
       }
     }
+
+    // Espera un pequeño tiempo mínimo para reproducir el GIF (1.2 segundos)
+    await Future.delayed(const Duration(milliseconds: 1200));
+
+    _isInitializing = false;
+    notifyListeners();
   }
 
   /// Actualiza el perfil del usuario actual (nombre y teléfono).
@@ -148,8 +160,6 @@ class AuthController extends ChangeNotifier {
 
     try {
       await _authService.updateUserProfile(_currentUser!.id, nombre, telefono);
-      
-      // Actualizar el estado local
       _currentUser = UsuarioModel(
         id: _currentUser!.id,
         nombre: nombre,
@@ -158,12 +168,40 @@ class AuthController extends ChangeNotifier {
         rol: _currentUser!.rol,
         fechaRegistro: _currentUser!.fechaRegistro,
       );
-      
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       _errorMessage = 'Error al actualizar el perfil: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Cambia el rol del usuario y actualiza el estado local.
+  Future<bool> updateRol(String nuevoRol) async {
+    if (_currentUser == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authService.updateUserRol(_currentUser!.id, nuevoRol);
+      _currentUser = UsuarioModel(
+        id: _currentUser!.id,
+        nombre: _currentUser!.nombre,
+        correo: _currentUser!.correo,
+        telefono: _currentUser!.telefono,
+        rol: nuevoRol,
+        fechaRegistro: _currentUser!.fechaRegistro,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al cambiar el rol: $e';
       _isLoading = false;
       notifyListeners();
       return false;
