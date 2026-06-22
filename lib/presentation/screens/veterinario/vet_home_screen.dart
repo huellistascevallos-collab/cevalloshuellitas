@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../domain/controllers/auth_controller.dart';
+import '../../../domain/controllers/auth_controller.dart';
 
 class VetHomeScreen extends StatelessWidget {
   const VetHomeScreen({super.key});
@@ -68,10 +68,10 @@ class VetHomeScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildActionItem(Icons.calendar_month_rounded, 'Registrar\nNuevo Paciente'),
-                      _buildActionItem(Icons.monitor_heart_rounded, 'Consultas\nVirtuales'),
-                      _buildActionItem(Icons.favorite_rounded, 'Urgencias\n24h'),
-                      _buildActionItem(Icons.cases_rounded, 'Inventario\ny Facturas'),
+                      _buildActionItem(context, Icons.calendar_month_rounded, 'Registrar\nNuevo Paciente', '/nuevo_paciente'),
+                      _buildActionItem(context, Icons.monitor_heart_rounded, 'Consultas\nVirtuales', '/consultas_virtuales'),
+                      _buildActionItem(context, Icons.favorite_rounded, 'Urgencias\n24h', '/urgencias'),
+                      _buildActionItem(context, Icons.cases_rounded, 'Inventario\ny Facturas', '/inventario'),
                     ],
                   ),
                 ),
@@ -289,30 +289,33 @@ class VetHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionItem(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: const Color(0xFF229AA8), // Turquesa oscuro
-            borderRadius: BorderRadius.circular(18),
+  Widget _buildActionItem(BuildContext context, IconData icon, String label, String route) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, route),
+      child: Column(
+        children: [
+          Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: const Color(0xFF229AA8), // Turquesa oscuro
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Icon(icon, color: Colors.white, size: 38),
           ),
-          child: Icon(icon, color: Colors.white, size: 38),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 11,
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-            height: 1.1,
+          const SizedBox(height: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+              height: 1.1,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

@@ -158,6 +158,14 @@ class AuthService {
     return UsuarioModel.fromJson(response);
   }
 
+  /// Actualiza la información personal del usuario en la tabla `usuarios`.
+  Future<void> updateUserProfile(String userId, String nombre, String telefono) async {
+    await _client.from('usuarios').update({
+      'usua_nombre': nombre,
+      'usua_telefono': telefono,
+    }).eq('usua_id', userId);
+  }
+
   /// Retorna el usuario autenticado actualmente, o null si no hay sesión.
   String? getCurrentUserId() {
     return _client.auth.currentUser?.id;

@@ -138,6 +138,64 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  /// Actualiza el perfil del usuario actual (nombre y teléfono).
+  Future<bool> updateProfile(String nombre, String telefono) async {
+    if (_currentUser == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _authService.updateUserProfile(_currentUser!.id, nombre, telefono);
+      
+      // Actualizar el estado local
+      _currentUser = UsuarioModel(
+        id: _currentUser!.id,
+        nombre: nombre,
+        correo: _currentUser!.correo,
+        telefono: telefono,
+        rol: _currentUser!.rol,
+        fechaRegistro: _currentUser!.fechaRegistro,
+      );
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al actualizar el perfil: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Cambia la contraseña del usuario autenticado.
+  Future<bool> cambiarContrasena(String nuevaContrasena) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: nuevaContrasena),
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = _mapAuthError(e.message);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Error al cambiar la contraseña.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Mapea mensajes de error de Supabase Auth a mensajes en español.
   String _mapAuthError(String message) {
     if (message.contains('Invalid login credentials')) {

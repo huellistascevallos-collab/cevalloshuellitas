@@ -2,8 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../../domain/controllers/auth_controller.dart';
-import '../widgets/custom_text_field.dart';
+import '../../../domain/controllers/auth_controller.dart';
+import '../../widgets/custom_text_field.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
