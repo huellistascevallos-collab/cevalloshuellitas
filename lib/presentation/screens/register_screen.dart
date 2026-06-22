@@ -70,7 +70,11 @@ class _RegisterScreenState extends State<RegisterScreen>
     );
 
     if (success && mounted) {
-      Navigator.pushReplacementNamed(context, '/home');
+      if (_selectedRol == 'veterinario') {
+        Navigator.pushReplacementNamed(context, '/vet_home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
     }
   }
 
