@@ -204,6 +204,33 @@ class _SeleccionarUbicacionScreenState
             ),
           ),
 
+          // ── Botones de zoom ──
+          Positioned(
+            right: 16,
+            bottom: 220,
+            child: Column(
+              children: [
+                _zoomButton(
+                  icon: Icons.add_rounded,
+                  onTap: () {
+                    final zoom = _mapController.camera.zoom;
+                    _mapController.move(
+                        _mapController.camera.center, zoom + 1);
+                  },
+                ),
+                const SizedBox(height: 8),
+                _zoomButton(
+                  icon: Icons.remove_rounded,
+                  onTap: () {
+                    final zoom = _mapController.camera.zoom;
+                    _mapController.move(
+                        _mapController.camera.center, zoom - 1);
+                  },
+                ),
+              ],
+            ),
+          ),
+
           // ── Panel inferior con dirección y botón guardar ──
           Positioned(
             bottom: 0,
@@ -367,6 +394,28 @@ class _SeleccionarUbicacionScreenState
           ],
         ),
         child: Icon(icon, color: const Color(0xFF1CB5C9), size: 20),
+      ),
+    );
+  }
+
+  Widget _zoomButton({required IconData icon, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.10),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: const Color(0xFF1CB5C9), size: 24),
       ),
     );
   }

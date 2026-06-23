@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../data/models/mascota_model.dart';
 import '../../data/services/mascota_service.dart';
@@ -80,7 +81,16 @@ class MascotaController extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = 'Error al guardar la mascota: $e';
+      debugPrint('Error agregarMascota: $e');
+      // Extraer mensaje legible de errores de Supabase
+      final msg = e.toString();
+      if (msg.contains('violates')) {
+        _errorMessage = 'Error de validación en la base de datos: $msg';
+      } else if (msg.contains('null value')) {
+        _errorMessage = 'Falta un campo requerido. Revisa los datos ingresados.';
+      } else {
+        _errorMessage = 'Error al guardar la mascota: $msg';
+      }
       _isLoading = false;
       notifyListeners();
       return false;

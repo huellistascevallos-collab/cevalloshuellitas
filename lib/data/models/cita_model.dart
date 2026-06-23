@@ -46,13 +46,27 @@ class CitaModel {
       }
     }
 
+    // Nombre mascota: puede venir de join (mascotas.masc_nombre)
+    // o de columna directa masc_nombre (citas de veterinario creadas manualmente)
+    final mascotasJoin = json['mascotas'] as Map<String, dynamic>?;
+    final mascotaNombre = mascotasJoin?['masc_nombre'] as String? ??
+        json['masc_nombre'] as String? ??
+        'Mascota';
+
+    // Nombre propietario: puede venir de join (usuarios.usua_nombre)
+    // o de columna directa propietario_nombre
+    final usuariosJoin = json['usuarios'] as Map<String, dynamic>?;
+    final propietarioNombre = usuariosJoin?['usua_nombre'] as String? ??
+        json['propietario_nombre'] as String? ??
+        '';
+
     return CitaModel(
       id: json['cita_id']?.toString() ?? '',
       usuarioId: json['usua_id']?.toString() ?? '',
       veteId: json['vete_id']?.toString(),
       mascotaId: json['masc_id']?.toString(),
-      mascotaNombre: json['masc_nombre'] as String? ?? 'Mascota',
-      propietarioNombre: json['propietario_nombre'] as String? ?? '',
+      mascotaNombre: mascotaNombre,
+      propietarioNombre: propietarioNombre,
       motivo: json['cita_motivo'] as String? ?? '',
       fecha: fechaStr,
       hora: horaStr,

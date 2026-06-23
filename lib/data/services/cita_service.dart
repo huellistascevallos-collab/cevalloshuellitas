@@ -5,6 +5,12 @@ import '../models/cita_model.dart';
 class CitaService {
   final SupabaseClient _client = Supabase.instance.client;
 
+  static const String _selectConJoin = '''
+    *,
+    mascotas(masc_nombre),
+    usuarios(usua_nombre)
+  ''';
+
   /// Citas del día actual — filtra por fecha dentro del timestamp
   Future<List<CitaModel>> obtenerCitasHoy() async {
     try {
@@ -13,7 +19,7 @@ class CitaService {
       final fin = inicio.add(const Duration(days: 1));
       final response = await _client
           .from('citas')
-          .select()
+          .select(_selectConJoin)
           .gte('cita_fecha', inicio.toIso8601String())
           .lt('cita_fecha', fin.toIso8601String())
           .order('cita_fecha');
@@ -29,7 +35,7 @@ class CitaService {
     try {
       final response = await _client
           .from('citas')
-          .select()
+          .select(_selectConJoin)
           .order('cita_fecha', ascending: false);
       return (response as List).map((e) => CitaModel.fromJson(e)).toList();
     } catch (e) {
@@ -43,7 +49,7 @@ class CitaService {
     try {
       final response = await _client
           .from('citas')
-          .select()
+          .select(_selectConJoin)
           .eq('usua_id', usuarioId)
           .order('cita_fecha', ascending: false);
       return (response as List).map((e) => CitaModel.fromJson(e)).toList();
@@ -58,7 +64,7 @@ class CitaService {
     try {
       final response = await _client
           .from('citas')
-          .select()
+          .select(_selectConJoin)
           .eq('vete_id', veteId)
           .order('cita_fecha', ascending: false);
       return (response as List).map((e) => CitaModel.fromJson(e)).toList();
@@ -70,20 +76,53 @@ class CitaService {
 
   /// Crea una nueva cita usando toInsertJson()
   Future<CitaModel> crearCita(CitaModel cita) async {
-    final response = await _client
+    // 1. Insertar la cita
+    final inserted = await _client
         .from('citas')
         .insert(cita.toInsertJson())
         .select()
         .single();
-    return CitaModel.fromJson(response);
+
+    // 2. Volver a leer con join para obtener masc_nombre y propietario_nombre
+    final citaId = inserted['cita_id']?.toString() ?? '';
+    try {
+      final full = await _client
+          .from('citas')
+          .select('''
+            *,
+            mascotas(masc_nombre),
+            usuarios(usua_nombre)
+          ''')
+          .eq('cita_id', citaId)
+          .single();
+      return CitaModel.fromJson(full);
+    } catch (_) {
+      // Si el join falla, devolvemos lo que tenemos con los datos locales
+      return CitaModel(
+        id: citaId,
+        usuarioId: cita.usuarioId,
+        veteId: cita.veteId,
+        mascotaId: cita.mascotaId,
+        mascotaNombre: cita.mascotaNombre,
+        propietarioNombre: cita.propietarioNombre,
+        motivo: cita.motivo,
+        fecha: cita.fecha,
+        hora: cita.hora,
+        estado: inserted['cita_estado'] as String? ?? cita.estado,
+        direccion: cita.direccion,
+      );
+    }
   }
 
   /// Guarda descripción, receta y estado de una cita (uso del veterinario)
+  /// y registra en historial_medico con diagnóstico y tratamiento.
   Future<CitaModel> guardarConsulta({
     required String citaId,
     required String estado,
     String? descripcion,
     String? receta,
+    String? mascotaId,
+    String? veteId,
   }) async {
     final response = await _client
         .from('citas')
@@ -95,6 +134,28 @@ class CitaService {
         .eq('cita_id', citaId)
         .select()
         .single();
+
+    // Guardar en historial_medico si hay contenido clínico
+    if ((descripcion != null && descripcion.isNotEmpty) ||
+        (receta != null && receta.isNotEmpty)) {
+      try {
+        await _client.from('historial_medico').insert({
+          if (mascotaId != null && mascotaId.isNotEmpty) 'masc_id': mascotaId,
+          if (veteId != null && veteId.isNotEmpty) 'vete_id': veteId,
+          if (descripcion != null && descripcion.isNotEmpty)
+            'hist_diagnostico': descripcion,
+          if (receta != null && receta.isNotEmpty)
+            'hist_tratamiento': receta,
+          'hist_fecha_consulta': DateTime.now()
+              .toIso8601String()
+              .split('T')
+              .first,
+        });
+      } catch (e) {
+        debugPrint('Error guardando historial: $e');
+      }
+    }
+
     return CitaModel.fromJson(response);
   }
 

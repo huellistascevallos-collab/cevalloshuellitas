@@ -117,6 +117,8 @@ class CitaController extends ChangeNotifier {
     required String estado,
     String? descripcion,
     String? receta,
+    String? mascotaId,
+    String? veteId,
   }) async {
     _isLoading = true;
     _errorMessage = null;
@@ -127,6 +129,8 @@ class CitaController extends ChangeNotifier {
         estado: estado,
         descripcion: descripcion,
         receta: receta,
+        mascotaId: mascotaId,
+        veteId: veteId,
       );
       _actualizarEnListas(actualizada);
       _isLoading = false;
