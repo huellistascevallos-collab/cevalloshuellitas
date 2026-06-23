@@ -76,14 +76,61 @@ class CitaService {
 
   /// Crea una nueva cita usando toInsertJson()
   Future<CitaModel> crearCita(CitaModel cita) async {
-    // 1. Insertar la cita
+    // 1. Validaciones
+    final now = DateTime.now();
+    final citaDateTime = DateTime.parse('${cita.fecha}T${cita.hora}:00');
+    if (citaDateTime.isBefore(now)) {
+      throw Exception('La fecha y hora seleccionada no puede ser en el pasado.');
+    }
+
+    // A. Verificar disponibilidad del veterinario (vete_disponible = true)
+    if (cita.veteId != null && cita.veteId!.isNotEmpty) {
+      final vet = await _client
+          .from('veterinarios')
+          .select('vete_disponible')
+          .eq('vete_id', cita.veteId!)
+          .maybeSingle();
+      if (vet != null && vet['vete_disponible'] == false) {
+        throw Exception('El veterinario no se encuentra disponible actualmente.');
+      }
+
+      // B. Verificar que no exista otra cita confirmada para el mismo veterinario en el mismo horario
+      final citaFechaIso = '${cita.fecha}T${cita.hora}:00';
+      final conflictVet = await _client
+          .from('citas')
+          .select('cita_id')
+          .eq('vete_id', cita.veteId!)
+          .eq('cita_fecha', citaFechaIso)
+          .eq('cita_estado', 'confirmada')
+          .maybeSingle();
+      if (conflictVet != null) {
+        throw Exception('El veterinario ya tiene una cita confirmada en este horario.');
+      }
+    }
+
+    // C. Verificar que la mascota no tenga otra cita programada para la misma fecha y hora (pendiente o confirmada o en atención)
+    if (cita.mascotaId != null && cita.mascotaId!.isNotEmpty) {
+      final citaFechaIso = '${cita.fecha}T${cita.hora}:00';
+      final conflictMascota = await _client
+          .from('citas')
+          .select('cita_id')
+          .eq('masc_id', cita.mascotaId!)
+          .eq('cita_fecha', citaFechaIso)
+          .inFilter('cita_estado', ['pendiente', 'confirmada', 'en atención'])
+          .maybeSingle();
+      if (conflictMascota != null) {
+        throw Exception('La mascota ya tiene una cita programada para esta fecha y hora.');
+      }
+    }
+
+    // 2. Insertar la cita
     final inserted = await _client
         .from('citas')
         .insert(cita.toInsertJson())
         .select()
         .single();
 
-    // 2. Volver a leer con join para obtener masc_nombre y propietario_nombre
+    // 3. Volver a leer con join para obtener masc_nombre y propietario_nombre
     final citaId = inserted['cita_id']?.toString() ?? '';
     try {
       final full = await _client
@@ -140,12 +187,10 @@ class CitaService {
         (receta != null && receta.isNotEmpty)) {
       try {
         await _client.from('historial_medico').insert({
-          if (mascotaId != null && mascotaId.isNotEmpty) 'masc_id': mascotaId,
-          if (veteId != null && veteId.isNotEmpty) 'vete_id': veteId,
-          if (descripcion != null && descripcion.isNotEmpty)
-            'hist_diagnostico': descripcion,
-          if (receta != null && receta.isNotEmpty)
-            'hist_tratamiento': receta,
+          if (mascotaId?.isNotEmpty == true) 'masc_id': mascotaId,
+          if (veteId?.isNotEmpty == true) 'vete_id': veteId,
+          if (descripcion?.isNotEmpty == true) 'hist_diagnostico': descripcion,
+          if (receta?.isNotEmpty == true) 'hist_tratamiento': receta,
           'hist_fecha_consulta': DateTime.now()
               .toIso8601String()
               .split('T')

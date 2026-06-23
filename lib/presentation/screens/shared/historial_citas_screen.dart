@@ -44,6 +44,14 @@ class _HistorialCitasScreenState extends State<HistorialCitasScreen> {
         ? ctrl.citasDelUsuario
         : ctrl.citasDelVeterinario;
     if (_filtro == 'todos') return lista;
+    // 'completada' agrupa también 'finalizada' (mismo significado)
+    if (_filtro == 'completada') {
+      return lista
+          .where((c) =>
+              c.estado.toLowerCase() == 'completada' ||
+              c.estado.toLowerCase() == 'finalizada')
+          .toList();
+    }
     return lista.where((c) => c.estado.toLowerCase() == _filtro).toList();
   }
 
@@ -186,10 +194,20 @@ class _HistorialCitasScreenState extends State<HistorialCitasScreen> {
     IconData estadoIcon;
     switch (cita.estado.toLowerCase()) {
       case 'completada':
+      case 'finalizada':
         estadoColor = const Color(0xFF43B89C);
         estadoIcon = Icons.task_alt_rounded;
         break;
+      case 'confirmada':
+        estadoColor = const Color(0xFF1CB5C9);
+        estadoIcon = Icons.check_circle_outline_rounded;
+        break;
+      case 'en atención':
+        estadoColor = const Color(0xFF7C6FCD);
+        estadoIcon = Icons.play_circle_outline_rounded;
+        break;
       case 'cancelada':
+      case 'rechazada':
         estadoColor = const Color(0xFFE53935);
         estadoIcon = Icons.cancel_outlined;
         break;
@@ -199,7 +217,8 @@ class _HistorialCitasScreenState extends State<HistorialCitasScreen> {
     }
 
     final esModoUsuario = widget.modo == 'usuario';
-    final esCompletada = cita.estado.toLowerCase() == 'completada';
+    final esCompletada = cita.estado.toLowerCase() == 'completada' ||
+        cita.estado.toLowerCase() == 'finalizada';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -542,11 +561,11 @@ class _BotonCalificarState extends State<_BotonCalificar> {
                               final guardada = await widget
                                   .calificacionService
                                   .guardarCalificacion(cal);
-                              if (ctx.mounted) Navigator.pop(ctx);
+                              if (!ctx.mounted) return;
+                              Navigator.pop(ctx);
                               if (mounted) {
-                                setState(
-                                    () => _calificacion = guardada);
-                                ScaffoldMessenger.of(context)
+                                setState(() => _calificacion = guardada);
+                                ScaffoldMessenger.of(ctx)
                                     .showSnackBar(SnackBar(
                                   content: Text(
                                       '¡Gracias por tu calificación!',

@@ -411,6 +411,19 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
               setState(() {
                 _fechaSeleccionada =
                     '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+                if (_horaSeleccionada != null) {
+                  final ahora = DateTime.now();
+                  final hoyStr = '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}';
+                  if (_fechaSeleccionada == hoyStr) {
+                    final parts = _horaSeleccionada!.split(':');
+                    final hourInt = int.parse(parts[0]);
+                    final minInt = int.parse(parts[1]);
+                    final timeVal = DateTime(ahora.year, ahora.month, ahora.day, hourInt, minInt);
+                    if (timeVal.isBefore(ahora)) {
+                      _horaSeleccionada = null;
+                    }
+                  }
+                }
               });
             }
           },
@@ -453,19 +466,36 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         Wrap(
           spacing: 8, runSpacing: 8,
           children: _horas.map((h) {
-            final sel = _horaSeleccionada == h;
+            final ahora = DateTime.now();
+            final hoyStr = '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}';
+            bool esPasado = false;
+            if (_fechaSeleccionada == hoyStr) {
+              final parts = h.split(':');
+              final hourInt = int.parse(parts[0]);
+              final minInt = int.parse(parts[1]);
+              final timeVal = DateTime(ahora.year, ahora.month, ahora.day, hourInt, minInt);
+              if (timeVal.isBefore(ahora)) {
+                esPasado = true;
+              }
+            }
+
+            final sel = _horaSeleccionada == h && !esPasado;
             return GestureDetector(
-              onTap: () => setState(() => _horaSeleccionada = h),
+              onTap: esPasado ? null : () => setState(() => _horaSeleccionada = h),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: sel ? color : Colors.white,
+                  color: esPasado
+                      ? Colors.grey.shade200
+                      : (sel ? color : Colors.white),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: sel ? color : Colors.grey.shade200,
+                      color: esPasado
+                          ? Colors.grey.shade300
+                          : (sel ? color : Colors.grey.shade200),
                       width: sel ? 0 : 1.2),
-                  boxShadow: sel ? [BoxShadow(
+                  boxShadow: (sel && !esPasado) ? [BoxShadow(
                       color: color.withValues(alpha: 0.3),
                       blurRadius: 8, offset: const Offset(0, 3))] : [],
                 ),
@@ -473,7 +503,9 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
                     style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: sel ? Colors.white : Colors.grey.shade600)),
+                        color: esPasado
+                            ? Colors.grey.shade400
+                            : (sel ? Colors.white : Colors.grey.shade600))),
               ),
             );
           }).toList(),

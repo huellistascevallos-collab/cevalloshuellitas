@@ -200,11 +200,14 @@ class _VetCitasScreenState extends State<VetCitasScreen>
           lista = ctrl.citasDelVeterinario
               .where((c) =>
                   c.estado.toLowerCase() == 'pendiente' ||
-                  c.estado.toLowerCase() == 'confirmada')
+                  c.estado.toLowerCase() == 'confirmada' ||
+                  c.estado.toLowerCase() == 'en atención')
               .toList();
         } else {
           lista = ctrl.citasDelVeterinario
-              .where((c) => c.estado.toLowerCase() == filtro)
+              .where((c) =>
+                  c.estado.toLowerCase() == 'completada' ||
+                  c.estado.toLowerCase() == 'finalizada')
               .toList();
         }
 
@@ -254,11 +257,17 @@ class _VetCitasScreenState extends State<VetCitasScreen>
         estadoColor = const Color(0xFF1CB5C9);
         estadoIcon = Icons.check_circle_outline_rounded;
         break;
+      case 'en atención':
+        estadoColor = const Color(0xFF7C6FCD);
+        estadoIcon = Icons.play_circle_outline_rounded;
+        break;
       case 'completada':
+      case 'finalizada':
         estadoColor = const Color(0xFF43B89C);
         estadoIcon = Icons.task_alt_rounded;
         break;
       case 'cancelada':
+      case 'rechazada':
         estadoColor = const Color(0xFFE53935);
         estadoIcon = Icons.cancel_outlined;
         break;
@@ -272,7 +281,7 @@ class _VetCitasScreenState extends State<VetCitasScreen>
         context,
         MaterialPageRoute(builder: (_) => DetalleCitaScreen(cita: cita)),
       ).then((_) {
-        // Recargar al volver del detalle
+        if (!context.mounted) return;
         final veteId = context.read<VeterinarioController>().perfil?.id;
         if (veteId != null) {
           context.read<CitaController>().cargarCitasDeVeterinario(veteId);
@@ -443,10 +452,15 @@ class _NuevaCitaSheetState extends State<_NuevaCitaSheet> {
       return;
     }
 
+    // Obtener el veteId del veterinario logueado
+    final vetCtrl = context.read<VeterinarioController>();
+    final veteId = vetCtrl.perfil?.id ?? '';
+
     final cita = CitaModel(
       id: '',
       usuarioId: '',
-      mascotaId: '',
+      veteId: veteId.isNotEmpty ? veteId : null,
+      mascotaId: null,
       mascotaNombre: _mascotaController.text.trim(),
       propietarioNombre: _propietarioController.text.trim(),
       motivo: _motivoController.text.trim(),
@@ -522,6 +536,19 @@ class _NuevaCitaSheetState extends State<_NuevaCitaSheet> {
                     setState(() {
                       _fechaSeleccionada =
                           '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
+                      // Limpiar hora si ya no es válida para la fecha elegida
+                      if (_horaSeleccionada != null) {
+                        final ahora = DateTime.now();
+                        final hoyStr = '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}';
+                        if (_fechaSeleccionada == hoyStr) {
+                          final parts = _horaSeleccionada!.split(':');
+                          final timeVal = DateTime(ahora.year, ahora.month, ahora.day,
+                              int.parse(parts[0]), int.parse(parts[1]));
+                          if (timeVal.isBefore(ahora)) {
+                            _horaSeleccionada = null;
+                          }
+                        }
+                      }
                     });
                   }
                 },
@@ -558,21 +585,35 @@ class _NuevaCitaSheetState extends State<_NuevaCitaSheet> {
                 spacing: 8,
                 runSpacing: 8,
                 children: _horas.map((h) {
-                  final sel = _horaSeleccionada == h;
+                  // Deshabilitar horas pasadas si la fecha es hoy
+                  final ahora = DateTime.now();
+                  final hoyStr = '${ahora.year}-${ahora.month.toString().padLeft(2, '0')}-${ahora.day.toString().padLeft(2, '0')}';
+                  bool esPasado = false;
+                  if (_fechaSeleccionada == hoyStr) {
+                    final parts = h.split(':');
+                    final timeVal = DateTime(ahora.year, ahora.month, ahora.day,
+                        int.parse(parts[0]), int.parse(parts[1]));
+                    if (timeVal.isBefore(ahora)) esPasado = true;
+                  }
+                  final sel = _horaSeleccionada == h && !esPasado;
                   return GestureDetector(
-                    onTap: () => setState(() => _horaSeleccionada = h),
+                    onTap: esPasado ? null : () => setState(() => _horaSeleccionada = h),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 150),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: sel ? const Color(0xFF1CB5C9) : Colors.grey.shade100,
+                        color: esPasado
+                            ? Colors.grey.shade200
+                            : (sel ? const Color(0xFF1CB5C9) : Colors.grey.shade100),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(h,
                           style: GoogleFonts.poppins(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: sel ? Colors.white : Colors.grey.shade700)),
+                              color: esPasado
+                                  ? Colors.grey.shade400
+                                  : (sel ? Colors.white : Colors.grey.shade700))),
                     ),
                   );
                 }).toList(),

@@ -15,8 +15,11 @@ class DetalleCitaScreen extends StatefulWidget {
 }
 
 class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
-  late TextEditingController _descripcionCtrl;
+  late TextEditingController _diagnosticoCtrl;
+  late TextEditingController _observacionesCtrl;
+  late TextEditingController _tratamientoCtrl;
   late TextEditingController _recetaCtrl;
+  late TextEditingController _recomendacionesCtrl;
   late String _estadoActual;
   final CalificacionService _calificacionService = CalificacionService();
 
@@ -27,17 +30,68 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   @override
   void initState() {
     super.initState();
-    _descripcionCtrl =
-        TextEditingController(text: widget.cita.descripcion ?? '');
-    _recetaCtrl = TextEditingController(text: widget.cita.receta ?? '');
+    
+    // Parsear descripción (Diagnóstico + Observaciones)
+    String diagnostico = '';
+    String observaciones = '';
+    final desc = widget.cita.descripcion ?? '';
+    if (desc.contains('Observaciones:')) {
+      final parts = desc.split('Observaciones:');
+      diagnostico = parts[0].replaceAll('Diagnóstico:', '').trim();
+      observaciones = parts[1].trim();
+    } else {
+      diagnostico = desc;
+    }
+
+    // Parsear receta (Tratamiento + Medicamentos + Recomendaciones)
+    String tratamiento = '';
+    String medicamentos = '';
+    String recomendaciones = '';
+    final rec = widget.cita.receta ?? '';
+    
+    if (rec.contains('Tratamiento:') || rec.contains('Medicamentos:') || rec.contains('Recomendaciones:')) {
+      final tIndex = rec.indexOf('Tratamiento:');
+      final mIndex = rec.indexOf('Medicamentos:');
+      final rIndex = rec.indexOf('Recomendaciones:');
+      
+      int tStart = tIndex != -1 ? tIndex + 'Tratamiento:'.length : -1;
+      int mStart = mIndex != -1 ? mIndex + 'Medicamentos:'.length : -1;
+      int rStart = rIndex != -1 ? rIndex + 'Recomendaciones:'.length : -1;
+      
+      int tEnd = mIndex != -1 ? mIndex : (rIndex != -1 ? rIndex : rec.length);
+      int mEnd = rIndex != -1 ? rIndex : rec.length;
+      int rEnd = rec.length;
+      
+      if (tIndex != -1) {
+        tratamiento = rec.substring(tStart, tEnd).trim();
+      }
+      if (mIndex != -1) {
+        medicamentos = rec.substring(mStart, mEnd).trim();
+      }
+      if (rIndex != -1) {
+        recomendaciones = rec.substring(rStart, rEnd).trim();
+      }
+    } else {
+      medicamentos = rec;
+    }
+
+    _diagnosticoCtrl = TextEditingController(text: diagnostico);
+    _observacionesCtrl = TextEditingController(text: observaciones);
+    _tratamientoCtrl = TextEditingController(text: tratamiento);
+    _recetaCtrl = TextEditingController(text: medicamentos);
+    _recomendacionesCtrl = TextEditingController(text: recomendaciones);
+    
     _estadoActual = widget.cita.estado;
     _cargarCalificacion();
   }
 
   @override
   void dispose() {
-    _descripcionCtrl.dispose();
+    _diagnosticoCtrl.dispose();
+    _observacionesCtrl.dispose();
+    _tratamientoCtrl.dispose();
     _recetaCtrl.dispose();
+    _recomendacionesCtrl.dispose();
     super.dispose();
   }
 
@@ -85,21 +139,28 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
       DateTime.now().isAfter(_fechaHoraCita) ||
       DateTime.now().isAtSameMomentAs(_fechaHoraCita);
 
-  /// True cuando la cita ya fue completada
+  /// True cuando la cita ya fue completada o finalizada
   bool get _citaCompletada =>
-      _estadoActual.toLowerCase() == 'completada';
+      _estadoActual.toLowerCase() == 'completada' ||
+      _estadoActual.toLowerCase() == 'finalizada';
 
-  /// True cuando se puede editar la consulta
+  /// True cuando se puede editar la consulta (solo en estado "en atención")
   bool get _puedeEditar =>
-      _citaYaComenzo && _estadoActual.toLowerCase() != 'cancelada';
+      _estadoActual.toLowerCase() == 'en atención';
 
   // ── Colores y estado ──────────────────────────────────────────────────────
 
   Color get _estadoColor {
     switch (_estadoActual.toLowerCase()) {
       case 'completada':
+      case 'finalizada':
         return const Color(0xFF43B89C);
+      case 'en atención':
+        return const Color(0xFF7C6FCD);
+      case 'confirmada':
+        return const Color(0xFF1CB5C9);
       case 'cancelada':
+      case 'rechazada':
         return const Color(0xFFE53935);
       default:
         return const Color(0xFFE58D57);
@@ -109,8 +170,14 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
   IconData get _estadoIcon {
     switch (_estadoActual.toLowerCase()) {
       case 'completada':
+      case 'finalizada':
         return Icons.task_alt_rounded;
+      case 'en atención':
+        return Icons.play_circle_outline_rounded;
+      case 'confirmada':
+        return Icons.check_circle_outline_rounded;
       case 'cancelada':
+      case 'rechazada':
         return Icons.cancel_outlined;
       default:
         return Icons.schedule_rounded;
@@ -245,49 +312,56 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Sección de consulta — solo si ya comenzó
-                      if (yaComenzo) ...[
+                      // Sección de consulta — si está en atención o ya completada/finalizada
+                      if (_estadoActual.toLowerCase() == 'en atención' || _citaCompletada) ...[
                         _editableCard(
-                          title: 'Notas de la consulta',
-                          icon: Icons.description_outlined,
+                          title: 'Observaciones médicas',
+                          icon: Icons.notes_outlined,
                           color: const Color(0xFF7C6FCD),
-                          controller: _descripcionCtrl,
-                          hint:
-                              'Describe síntomas, diagnóstico y observaciones…',
-                          maxLines: 5,
+                          controller: _observacionesCtrl,
+                          hint: 'Comportamiento de la mascota, síntomas observados...',
+                          maxLines: 3,
                           enabled: _puedeEditar,
                         ),
                         const SizedBox(height: 14),
                         _editableCard(
-                          title: 'Receta / Prescripción',
+                          title: 'Diagnóstico',
+                          icon: Icons.description_outlined,
+                          color: const Color(0xFF1CB5C9),
+                          controller: _diagnosticoCtrl,
+                          hint: 'Escribe el diagnóstico médico (Requerido)...',
+                          maxLines: 3,
+                          enabled: _puedeEditar,
+                        ),
+                        const SizedBox(height: 14),
+                        _editableCard(
+                          title: 'Tratamiento',
+                          icon: Icons.healing_outlined,
+                          color: const Color(0xFFF0954A),
+                          controller: _tratamientoCtrl,
+                          hint: 'Plan de cuidado y tratamiento a seguir...',
+                          maxLines: 3,
+                          enabled: _puedeEditar,
+                        ),
+                        const SizedBox(height: 14),
+                        _editableCard(
+                          title: 'Medicamentos recetados (Receta)',
                           icon: Icons.medication_outlined,
                           color: const Color(0xFF43B89C),
                           controller: _recetaCtrl,
-                          hint: 'Medicamentos, dosis, indicaciones…',
-                          maxLines: 4,
+                          hint: 'Fórmulas, dosis e indicaciones médicas...',
+                          maxLines: 3,
                           enabled: _puedeEditar,
                         ),
                         const SizedBox(height: 14),
-                      ],
-
-                      // Cambiar estado — solo si ya comenzó y no cancelada
-                      if (yaComenzo &&
-                          _estadoActual.toLowerCase() != 'cancelada') ...[
-                        _infoCard(
-                          title: 'Cambiar Estado',
-                          icon: Icons.swap_horiz_rounded,
-                          color: const Color(0xFF126E82),
-                          children: [
-                            _estadoSelector('pendiente',
-                                Icons.schedule_rounded,
-                                const Color(0xFFE58D57)),
-                            _estadoSelector('completada',
-                                Icons.task_alt_rounded,
-                                const Color(0xFF43B89C)),
-                            _estadoSelector('cancelada',
-                                Icons.cancel_outlined,
-                                const Color(0xFFE53935)),
-                          ],
+                        _editableCard(
+                          title: 'Recomendaciones',
+                          icon: Icons.info_outline_rounded,
+                          color: const Color(0xFFFFB300),
+                          controller: _recomendacionesCtrl,
+                          hint: 'Recomendaciones alimentarias, de aseo u otras...',
+                          maxLines: 3,
+                          enabled: _puedeEditar,
                         ),
                         const SizedBox(height: 14),
                       ],
@@ -302,7 +376,7 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
                         const SizedBox(height: 14),
                       ],
 
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 100),
                     ]),
                   ),
                 ),
@@ -310,50 +384,95 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
             ),
           ),
 
-          // Botón guardar — solo si ya comenzó y no está cancelada
-          if (yaComenzo && _estadoActual.toLowerCase() != 'cancelada')
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, -4))
-                  ],
-                ),
-                child: Consumer<CitaController>(
-                  builder: (ctx, ctrl, _) => SizedBox(
-                    height: 52,
-                    child: ElevatedButton.icon(
-                      onPressed: ctrl.isLoading ? null : _guardar,
-                      icon: ctrl.isLoading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.save_rounded, size: 20),
-                      label: Text('Guardar Consulta',
-                          style: GoogleFonts.poppins(
-                              fontSize: 16, fontWeight: FontWeight.w700)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _estadoColor,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
+          // Botones de acción inferior basados en el estado actual
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 28),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -4))
+                ],
+              ),
+              child: Consumer<CitaController>(
+                builder: (ctx, ctrl, _) {
+                  final estadoLower = _estadoActual.toLowerCase();
+                  
+                  if (estadoLower == 'pendiente') {
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: ctrl.isLoading ? null : _rechazarCitaDialog,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFE53935),
+                              side: const BorderSide(color: Color(0xFFE53935), width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: Text('Rechazar', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: ctrl.isLoading ? null : _aceptarCita,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF43B89C),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            child: Text('Aceptar Cita', style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else if (estadoLower == 'confirmada') {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: ctrl.isLoading ? null : _iniciarAtencion,
+                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                        label: Text('Iniciar Atención', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C6FCD),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
+                    );
+                  } else if (estadoLower == 'en atención') {
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: ctrl.isLoading ? null : _guardarConsultaFinal,
+                        icon: const Icon(Icons.check_circle_outline_rounded, color: Colors.white),
+                        label: Text('Finalizar Consulta', style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF43B89C),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
               ),
             ),
+          ),
         ],
       ),
     );
@@ -673,82 +792,189 @@ class _DetalleCitaScreenState extends State<DetalleCitaScreen> {
     );
   }
 
-  Widget _estadoSelector(
-      String estado, IconData icon, Color color) {
-    final sel = _estadoActual.toLowerCase() == estado;
-    return GestureDetector(
-      onTap: () => setState(() => _estadoActual = estado),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color:
-              sel ? color.withValues(alpha: 0.1) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: sel ? color : Colors.grey.shade200,
-              width: sel ? 1.5 : 1),
+  // ── Acciones de Estado ───────────────────────────────────────────────────
+
+  Future<void> _aceptarCita() async {
+    final ctrl = context.read<CitaController>();
+    final ok = await ctrl.actualizarEstado(widget.cita.id, 'confirmada');
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _estadoActual = 'confirmada');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Cita aceptada y confirmada exitosamente.', style: GoogleFonts.poppins(fontSize: 13)),
+        backgroundColor: const Color(0xFF1CB5C9),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ctrl.errorMessage ?? 'Error al aceptar cita'),
+        backgroundColor: const Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
+  }
+
+  void _rechazarCitaDialog() {
+    final motivoCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text('Rechazar Cita', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Por favor ingresa el motivo del rechazo para informar al propietario:',
+                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: motivoCtrl,
+              maxLines: 3,
+              style: GoogleFonts.poppins(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Ej. No atiendo a esa hora / Médico de vacaciones / Emergencia...',
+                hintStyle: GoogleFonts.poppins(fontSize: 12, color: Colors.grey.shade400),
+                filled: true,
+                fillColor: const Color(0xFFF5F6FA),
+                contentPadding: const EdgeInsets.all(12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
         ),
-        child: Row(children: [
-          Icon(icon,
-              color: sel ? color : Colors.grey.shade400, size: 20),
-          const SizedBox(width: 12),
-          Text(estado[0].toUpperCase() + estado.substring(1),
-              style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight:
-                      sel ? FontWeight.w700 : FontWeight.w500,
-                  color:
-                      sel ? color : Colors.grey.shade600)),
-          const Spacer(),
-          if (sel)
-            Icon(Icons.check_circle_rounded, color: color, size: 18),
-        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar', style: GoogleFonts.poppins(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final motivo = motivoCtrl.text.trim();
+              if (motivo.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('El motivo de rechazo es obligatorio.'),
+                  backgroundColor: Color(0xFFE53935),
+                ));
+                return;
+              }
+              Navigator.pop(ctx);
+              await _rechazarCita(motivo);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53935),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Confirmar Rechazo', style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
 
-  // ── Guardar ───────────────────────────────────────────────────────────────
-
-  Future<void> _guardar() async {
+  Future<void> _rechazarCita(String motivo) async {
     final ctrl = context.read<CitaController>();
     final ok = await ctrl.guardarConsulta(
       citaId: widget.cita.id,
-      estado: _estadoActual,
-      descripcion: _descripcionCtrl.text.trim().isNotEmpty
-          ? _descripcionCtrl.text.trim()
-          : null,
-      receta: _recetaCtrl.text.trim().isNotEmpty
-          ? _recetaCtrl.text.trim()
-          : null,
+      estado: 'rechazada',
+      descripcion: 'Cita rechazada. Motivo: $motivo',
+      receta: '',
       mascotaId: widget.cita.mascotaId,
       veteId: widget.cita.veteId,
     );
     if (!mounted) return;
     if (ok) {
-      Navigator.pop(context);
+      setState(() => _estadoActual = 'rechazada');
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.check_circle_outline_rounded,
-              color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          Text('Consulta guardada correctamente',
-              style: GoogleFonts.poppins(fontSize: 13)),
-        ]),
-        backgroundColor: const Color(0xFF43B89C),
+        content: Text('Cita rechazada y notificado al propietario.', style: GoogleFonts.poppins(fontSize: 13)),
+        backgroundColor: const Color(0xFFE53935),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(ctrl.errorMessage ?? 'Error al guardar'),
+        content: Text(ctrl.errorMessage ?? 'Error al rechazar cita'),
         backgroundColor: const Color(0xFFE53935),
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
+  }
+
+  Future<void> _iniciarAtencion() async {
+    final ctrl = context.read<CitaController>();
+    final ok = await ctrl.actualizarEstado(widget.cita.id, 'en atención');
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _estadoActual = 'en atención');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Atención iniciada. Registra los datos clínicos a continuación.', style: GoogleFonts.poppins(fontSize: 13)),
+        backgroundColor: const Color(0xFF7C6FCD),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ctrl.errorMessage ?? 'Error al iniciar atención'),
+        backgroundColor: const Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    }
+  }
+
+  Future<void> _guardarConsultaFinal() async {
+    final ctrl = context.read<CitaController>();
+    final diagnostico = _diagnosticoCtrl.text.trim();
+    final observaciones = _observacionesCtrl.text.trim();
+    final tratamiento = _tratamientoCtrl.text.trim();
+    final medicamentos = _recetaCtrl.text.trim();
+    final recomendaciones = _recomendacionesCtrl.text.trim();
+
+    if (diagnostico.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Por favor, ingresa el diagnóstico clínico.'),
+        backgroundColor: Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+
+    final combinedDesc = 'Diagnóstico: $diagnostico\n\nObservaciones: $observaciones';
+    final combinedReceta = 'Tratamiento: $tratamiento\n\nMedicamentos: $medicamentos\n\nRecomendaciones: $recomendaciones';
+
+    final ok = await ctrl.guardarConsulta(
+      citaId: widget.cita.id,
+      estado: 'finalizada',
+      descripcion: combinedDesc,
+      receta: combinedReceta,
+      mascotaId: widget.cita.mascotaId,
+      veteId: widget.cita.veteId,
+    );
+
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _estadoActual = 'finalizada');
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Text('Consulta finalizada y guardada en el historial médico.', style: GoogleFonts.poppins(fontSize: 13)),
+        ]),
+        backgroundColor: const Color(0xFF43B89C),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(ctrl.errorMessage ?? 'Error al finalizar consulta'),
+        backgroundColor: const Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
     }
   }

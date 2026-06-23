@@ -999,7 +999,7 @@ class _RecuperarContrasenaScreenState
     required VoidCallback onTap,
   }) {
     return Consumer<AuthController>(
-      builder: (_, auth, _) => SizedBox(
+      builder: (ctx, auth, child) => SizedBox(
         width: double.infinity,
         height: 54,
         child: ElevatedButton.icon(

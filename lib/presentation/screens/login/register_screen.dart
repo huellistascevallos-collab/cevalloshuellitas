@@ -251,7 +251,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     ),
                                   ),
                                   child: DropdownButtonFormField<String>(
-                                    initialValue: _selectedRol,
+                                    value: _selectedRol,
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       icon: Icon(

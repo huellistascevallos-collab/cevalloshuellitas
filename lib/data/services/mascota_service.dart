@@ -59,9 +59,12 @@ class MascotaService {
     return MascotaModel.fromJson(response);
   }
 
+  /// Elimina una mascota por su ID.
+  Future<void> eliminarMascota(String mascotaId) async {
+    await _client.from('mascotas').delete().eq('masc_id', mascotaId);
+  }
+
   /// Sube una imagen a Supabase Storage y retorna la URL pública.
-  /// Lanza una excepción si algo falla, para que el controller pueda
-  /// mostrar el error al usuario en lugar de silenciarlo.
   Future<String?> subirImagenMascota(File imagen, String extension) async {
     final fileName = '${DateTime.now().millisecondsSinceEpoch}.$extension';
     final ruta = 'mascotas/$fileName';

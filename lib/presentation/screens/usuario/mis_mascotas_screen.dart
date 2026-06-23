@@ -45,6 +45,94 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
     );
   }
 
+  void _confirmarEliminar(BuildContext context, MascotaModel mascota) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFEBEE),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.delete_outline_rounded,
+                color: Color(0xFFE53935), size: 22),
+          ),
+          const SizedBox(width: 12),
+          Text('Eliminar mascota',
+              style: GoogleFonts.poppins(
+                  fontSize: 17, fontWeight: FontWeight.w700, color: _dark)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '¿Estás seguro que deseas eliminar a ',
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+            ),
+            Text(
+              '"${mascota.nombre}"?',
+              style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _dark),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Esta acción no se puede deshacer.',
+              style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: const Color(0xFFE53935),
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar',
+                style: GoogleFonts.poppins(
+                    color: Colors.grey.shade600, fontWeight: FontWeight.w600)),
+          ),
+          Consumer<MascotaController>(
+            builder: (context, ctrl, _) => ElevatedButton(
+              onPressed: ctrl.isLoading
+                  ? null
+                  : () async {
+                      Navigator.pop(ctx);
+                      final mascotaCtrl = context.read<MascotaController>();
+                      final ok = await mascotaCtrl.eliminarMascota(mascota.id);
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(ok
+                            ? '"${mascota.nombre}" eliminada correctamente'
+                            : (mascotaCtrl.errorMessage ?? 'Error al eliminar')),
+                        backgroundColor:
+                            ok ? const Color(0xFF43B89C) : const Color(0xFFE53935),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ));
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE53935),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text('Eliminar',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final mascotaController = context.watch<MascotaController>();
@@ -242,6 +330,7 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Editar
                 GestureDetector(
                   onTap: () => _showAddMascotaSheet(context, mascota: mascota),
                   child: Container(
@@ -251,6 +340,20 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(Icons.edit_rounded, color: _teal, size: 18),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                // Eliminar
+                GestureDetector(
+                  onTap: () => _confirmarEliminar(context, mascota),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.delete_outline_rounded,
+                        color: Color(0xFFE53935), size: 18),
                   ),
                 ),
                 if (esParaAdoptar) ...[
@@ -688,7 +791,7 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
         ),
       ),
       child: DropdownButtonFormField<String>(
-        initialValue: value,
+        value: value,
         decoration: InputDecoration(
           border: InputBorder.none,
           labelText: label,

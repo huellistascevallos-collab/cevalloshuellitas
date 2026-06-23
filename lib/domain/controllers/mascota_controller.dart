@@ -154,6 +154,28 @@ class MascotaController extends ChangeNotifier {
     }
   }
 
+  /// Elimina una mascota por ID y la remueve de todas las listas locales.
+  Future<bool> eliminarMascota(String mascotaId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _mascotaService.eliminarMascota(mascotaId);
+      _mascotas.removeWhere((m) => m.id == mascotaId);
+      _mascotasAdopcion.removeWhere((m) => m.id == mascotaId);
+      _todasLasMascotas.removeWhere((m) => m.id == mascotaId);
+      _favoritos.remove(mascotaId);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al eliminar la mascota: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Limpia la lista de mascotas (útil al cerrar sesión)
   void limpiarMascotas() {
     _mascotas = [];

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../data/models/mascota_model.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
@@ -271,7 +272,9 @@ class _VetMascotasScreenState extends State<VetMascotasScreen>
   }
 
   Widget _buildMascotaCard(MascotaModel m, {required bool esPropia}) {
-    return Container(
+    return GestureDetector(
+      onTap: esPropia ? null : () => _showPerfilMascotaSheet(context, m),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -323,7 +326,7 @@ class _VetMascotasScreenState extends State<VetMascotasScreen>
                       color: const Color(0xFFE8F6F8),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text('En cita',
+                    child: Text('Atendido',
                         style: GoogleFonts.poppins(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
@@ -338,6 +341,10 @@ class _VetMascotasScreenState extends State<VetMascotasScreen>
                 _chip(m.edad, Icons.cake_outlined),
                 const SizedBox(width: 6),
                 _chip(m.genero, Icons.transgender_rounded),
+                if (!esPropia) ...[
+                  const SizedBox(width: 6),
+                  _chip('Ver dueño', Icons.person_outline_rounded),
+                ],
               ]),
             ]),
           ),
@@ -352,9 +359,55 @@ class _VetMascotasScreenState extends State<VetMascotasScreen>
                 child: const Icon(Icons.edit_rounded,
                     color: Color(0xFF1CB5C9), size: 20),
               ),
-            ),
+            )
+          else
+            const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFF1CB5C9), size: 22),
         ]),
       ),
+    ),
+    );
+  }
+
+  void _showPerfilMascotaSheet(BuildContext context, MascotaModel m) {
+    // Buscar la cita más reciente de esta mascota para obtener datos del dueño
+    final citaCtrl = context.read<CitaController>();
+    final citasMascota = citaCtrl.todasLasCitas
+        .where((c) =>
+            c.mascotaNombre.toLowerCase().trim() ==
+            m.nombre.toLowerCase().trim())
+        .toList();
+    citasMascota.sort((a, b) => b.fecha.compareTo(a.fecha));
+    final propietario = citasMascota.isNotEmpty
+        ? citasMascota.first.propietarioNombre
+        : '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PerfilMascotaSheet(
+        mascota: m,
+        propietario: propietario,
+        citasMascota: citasMascota,
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(children: [
+        Icon(icon, color: const Color(0xFF1CB5C9), size: 18),
+        const SizedBox(width: 12),
+        SizedBox(width: 80, child: Text(label,
+            style: GoogleFonts.poppins(
+                fontSize: 12, color: Colors.grey.shade500))),
+        Expanded(child: Text(value,
+            style: GoogleFonts.poppins(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: const Color(0xFF1A1A2E)))),
+      ]),
     );
   }
 
@@ -622,7 +675,7 @@ class _VetAddMascotaSheetState extends State<_VetAddMascotaSheet> {
         border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
       ),
       child: DropdownButtonFormField<String>(
-        initialValue: value,
+        value: value,
         decoration: InputDecoration(border: InputBorder.none,
             labelText: label,
             labelStyle: GoogleFonts.poppins(
@@ -635,6 +688,272 @@ class _VetAddMascotaSheetState extends State<_VetAddMascotaSheet> {
             DropdownMenuItem(value: e, child: Text(e))).toList(),
         onChanged: onChanged,
       ),
+    );
+  }
+}
+
+// ── Sheet: Perfil de mascota con datos del dueño (consulta teléfono en DB) ──
+class _PerfilMascotaSheet extends StatefulWidget {
+  final MascotaModel mascota;
+  final String propietario;
+  final List<dynamic> citasMascota;
+
+  const _PerfilMascotaSheet({
+    required this.mascota,
+    required this.propietario,
+    required this.citasMascota,
+  });
+
+  @override
+  State<_PerfilMascotaSheet> createState() => _PerfilMascotaSheetState();
+}
+
+class _PerfilMascotaSheetState extends State<_PerfilMascotaSheet> {
+  String? _telefono;
+  bool _cargando = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarTelefonoDueno();
+  }
+
+  Future<void> _cargarTelefonoDueno() async {
+    final usuarioId = widget.mascota.usuarioId;
+    if (usuarioId.isEmpty) {
+      if (mounted) setState(() => _cargando = false);
+      return;
+    }
+    try {
+      final result = await Supabase.instance.client
+          .from('usuarios')
+          .select('usua_telefono')
+          .eq('usua_id', usuarioId)
+          .maybeSingle();
+      if (mounted) {
+        setState(() {
+          _telefono = result?['usua_telefono'] as String?;
+          _cargando = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.mascota;
+    final citasMascota = widget.citasMascota;
+    final propietario = widget.propietario;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Foto y nombre
+          Row(children: [
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                  color: m.color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16)),
+              child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(m.fotoUrl!, fit: BoxFit.cover))
+                  : Icon(m.icon, size: 38, color: m.color),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(m.nombre,
+                      style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFF1A1A2E))),
+                  Text('${m.especie} · ${m.raza}',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, color: Colors.grey.shade500)),
+                ],
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+          // Datos de la mascota
+          _infoFila(Icons.cake_outlined, 'Edad', '${m.edad} años'),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          _infoFila(Icons.transgender_rounded, 'Género', m.genero),
+          const Divider(height: 1, color: Color(0xFFF0F0F0)),
+          _infoFila(Icons.category_outlined, 'Especie', m.especie),
+          const SizedBox(height: 16),
+          // Datos del dueño
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F6F8),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                  color: const Color(0xFF1CB5C9).withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const Icon(Icons.person_rounded,
+                      color: Color(0xFF1CB5C9), size: 18),
+                  const SizedBox(width: 8),
+                  Text('Datos del propietario',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF126E82))),
+                ]),
+                const SizedBox(height: 12),
+                // Nombre del propietario
+                if (propietario.isNotEmpty) ...[
+                  Row(children: [
+                    const Icon(Icons.badge_outlined,
+                        color: Color(0xFF1CB5C9), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(propietario,
+                          style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1A1A2E))),
+                    ),
+                  ]),
+                  const SizedBox(height: 8),
+                ],
+                // Teléfono del propietario
+                if (_cargando)
+                  Row(children: [
+                    const Icon(Icons.phone_outlined,
+                        color: Color(0xFF1CB5C9), size: 16),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: const Color(0xFF1CB5C9)),
+                    ),
+                  ])
+                else ...[
+                  Row(children: [
+                    const Icon(Icons.phone_outlined,
+                        color: Color(0xFF1CB5C9), size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        (_telefono?.isNotEmpty == true)
+                            ? _telefono!
+                            : 'Teléfono no registrado',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: (_telefono?.isNotEmpty == true)
+                                ? const Color(0xFF1A1A2E)
+                                : Colors.grey.shade400),
+                      ),
+                    ),
+                  ]),
+                ],
+                const SizedBox(height: 10),
+                const Divider(height: 1, color: Color(0xFFB2D8E0)),
+                const SizedBox(height: 10),
+                // Citas de esta mascota
+                Row(children: [
+                  const Icon(Icons.calendar_today_outlined,
+                      color: Color(0xFF1CB5C9), size: 16),
+                  const SizedBox(width: 8),
+                  Text('${citasMascota.length} cita(s) registrada(s)',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, color: Colors.grey.shade600)),
+                ]),
+                if (citasMascota.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const Icon(Icons.access_time_rounded,
+                        color: Color(0xFF1CB5C9), size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Última: ${citasMascota.first.fecha.split('-').reversed.join('/')}',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                  ]),
+                ],
+                if (propietario.isEmpty && !_cargando)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text('Propietario no registrado en el sistema.',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.grey.shade400)),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1CB5C9),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: Text('Cerrar',
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w600)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _infoFila(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(children: [
+        Icon(icon, color: const Color(0xFF1CB5C9), size: 18),
+        const SizedBox(width: 12),
+        SizedBox(
+            width: 80,
+            child: Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: Colors.grey.shade500))),
+        Expanded(
+            child: Text(value,
+                style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF1A1A2E)))),
+      ]),
     );
   }
 }

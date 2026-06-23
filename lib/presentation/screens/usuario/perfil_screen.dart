@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../domain/controllers/auth_controller.dart';
+import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../shared/historial_citas_screen.dart';
 
@@ -32,6 +33,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
       final mascotaController = context.read<MascotaController>();
       if (authController.currentUser != null) {
         mascotaController.cargarMascotas(authController.currentUser!.id);
+        // Cargar citas del usuario para el contador
+        context
+            .read<CitaController>()
+            .cargarCitasDeUsuario(authController.currentUser!.id);
       }
     });
   }
@@ -144,6 +149,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
     final mascotaController = context.watch<MascotaController>();
     final mascotas = mascotaController.mascotas;
     final isVet = user?.rol == 'veterinario';
+    // Citas del usuario
+    final citaCtrl = context.watch<CitaController>();
+    final citasPendientes = citaCtrl.citasDelUsuario
+        .where((c) =>
+            c.estado.toLowerCase() == 'pendiente' ||
+            c.estado.toLowerCase() == 'confirmada')
+        .length;
 
     return Scaffold(
       backgroundColor: _bg,
@@ -228,20 +240,45 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       label: 'Mascotas',
                       icon: Icons.pets_rounded,
                       color: _teal,
+                      onTap: () => Navigator.pushNamed(context, '/mis_mascotas'),
                     ),
                     const SizedBox(width: 12),
                     _StatCard(
-                      value: '0',
-                      label: 'Citas',
+                      value: '${citaCtrl.citasDelUsuario.length}',
+                      label: 'Mis Citas',
                       icon: Icons.calendar_today_rounded,
                       color: _orange,
+                      onTap: () {
+                        final uid = user?.id;
+                        if (uid != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HistorialCitasScreen(
+                                  modo: 'usuario', entityId: uid),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     const SizedBox(width: 12),
                     _StatCard(
-                      value: '0',
-                      label: 'Vacunas',
-                      icon: Icons.vaccines_rounded,
-                      color: const Color(0xFF43B89C),
+                      value: '$citasPendientes',
+                      label: 'Pendientes',
+                      icon: Icons.schedule_rounded,
+                      color: const Color(0xFF7C6FCD),
+                      onTap: () {
+                        final uid = user?.id;
+                        if (uid != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => HistorialCitasScreen(
+                                  modo: 'usuario', entityId: uid),
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ],
                 ),
@@ -389,6 +426,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     ),
                     _Separator(),
                     _OptionTile(
+                      icon: Icons.volunteer_activism_rounded,
+                      label: 'Mis Solicitudes de Adopción',
+                      iconColor: _orange,
+                      iconBg: _orange.withValues(alpha: 0.1),
+                      onTap: () => Navigator.pushNamed(context, '/solicitudes_adopcion'),
+                    ),
+                    _Separator(),
+                    _OptionTile(
                       icon: Icons.edit_outlined,
                       label: 'Editar Perfil',
                       iconColor: _teal,
@@ -443,59 +488,70 @@ class _StatCard extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.value,
     required this.label,
     required this.icon,
     required this.color,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.06),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.06),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
               ),
-              child: Icon(icon, color: color, size: 20),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: _dark,
+            ],
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 20),
               ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: _grey,
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: _dark,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: _grey,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              if (onTap != null) ...[
+                const SizedBox(height: 4),
+                Icon(Icons.arrow_forward_ios_rounded,
+                    size: 10, color: color.withValues(alpha: 0.6)),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -876,7 +932,7 @@ class _AvatarPickerState extends State<_AvatarPicker> {
 }
 
 // ═══════════════════════════════════════════════════
-// Sheet: Editar Perfil
+// Sheet: Editar Perfil — versión mejorada
 // ═══════════════════════════════════════════════════
 class _EditProfileSheet extends StatefulWidget {
   const _EditProfileSheet();
@@ -889,6 +945,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   late TextEditingController _nombreController;
   late TextEditingController _telefonoController;
   late String _rolSeleccionado;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -907,14 +964,8 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   }
 
   void _guardarPerfil() async {
+    if (!_formKey.currentState!.validate()) return;
     final authController = context.read<AuthController>();
-
-    if (_nombreController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El nombre no puede estar vacío.')),
-      );
-      return;
-    }
 
     final okPerfil = await authController.updateProfile(
       _nombreController.text.trim(),
@@ -923,10 +974,12 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
 
     if (!okPerfil) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(authController.errorMessage ?? 'Error al actualizar perfil')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(authController.errorMessage ?? 'Error al actualizar perfil'),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
       }
       return;
     }
@@ -935,29 +988,35 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     if (_rolSeleccionado != rolActual) {
       final okRol = await authController.updateRol(_rolSeleccionado);
       if (!okRol && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(authController.errorMessage ?? 'Error al cambiar el rol')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(authController.errorMessage ?? 'Error al cambiar el rol'),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
         return;
       }
     }
 
     if (mounted) {
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Perfil actualizado correctamente'),
-          backgroundColor: _teal,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Text('¡Perfil actualizado correctamente!',
+              style: GoogleFonts.poppins(fontSize: 13)),
+        ]),
+        backgroundColor: _teal,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
 
-      await Future.delayed(const Duration(milliseconds: 300));
-      if (mounted) {
-        if (_rolSeleccionado == 'veterinario') {
-          Navigator.pushReplacementNamed(context, '/vet_home');
-        } else {
-          Navigator.pushReplacementNamed(context, '/home');
+      if (_rolSeleccionado != rolActual) {
+        await Future.delayed(const Duration(milliseconds: 350));
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+              context, _rolSeleccionado == 'veterinario' ? '/vet_home' : '/home');
         }
       }
     }
@@ -966,7 +1025,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   @override
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
-    final currentRol = context.read<AuthController>().currentUser?.rol ?? 'usuario';
+    final user = authController.currentUser;
+    final rolActual = user?.rol ?? 'usuario';
+    final rolCambio = _rolSeleccionado != rolActual;
 
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -976,148 +1037,266 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       ),
       child: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _SheetHandle(),
-              const SizedBox(height: 20),
-              Text('Editar Perfil',
-                  style: GoogleFonts.poppins(
-                      fontSize: 22, fontWeight: FontWeight.w700, color: _dark)),
-              const SizedBox(height: 20),
-
-              _buildInputField('Nombre completo', _nombreController,
-                  Icons.person_outline_rounded),
-              const SizedBox(height: 14),
-
-              _buildInputField('Teléfono', _telefonoController, Icons.phone_outlined,
-                  keyboardType: TextInputType.phone),
-              const SizedBox(height: 14),
-
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0FAFB),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
-                ),
-                child: DropdownButtonFormField<String>(
-                  initialValue: _rolSeleccionado,
-                  decoration: InputDecoration(
-                    border: InputBorder.none,
-                    labelText: 'Rol',
-                    labelStyle:
-                        GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
-                    prefixIcon:
-                        const Icon(Icons.badge_outlined, color: _teal, size: 20),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Handle
+                Center(
+                  child: Container(
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF2D2D2D)),
-                  dropdownColor: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'usuario', child: Text('🐾  Usuario (Dueño de mascotas)')),
-                    DropdownMenuItem(
-                        value: 'veterinario', child: Text('🩺  Veterinario')),
-                  ],
-                  onChanged: (val) => setState(() => _rolSeleccionado = val!),
                 ),
-              ),
+                const SizedBox(height: 20),
 
-              if (_rolSeleccionado != currentRol) ...[
-                const SizedBox(height: 10),
+                // Encabezado con avatar
+                Row(children: [
+                  Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      color: _teal.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _teal.withValues(alpha: 0.3), width: 2),
+                    ),
+                    child: (user?.fotoUrl != null && user!.fotoUrl!.isNotEmpty)
+                        ? ClipOval(
+                            child: Image.network(user.fotoUrl!, fit: BoxFit.cover,
+                                errorBuilder: (c, e, s) => const Icon(
+                                    Icons.person_rounded, color: _teal, size: 28)))
+                        : const Icon(Icons.person_rounded, color: _teal, size: 28),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Editar Perfil',
+                          style: GoogleFonts.poppins(
+                              fontSize: 20, fontWeight: FontWeight.w700, color: _dark)),
+                      Text(user?.correo ?? '',
+                          style: GoogleFonts.poppins(fontSize: 12, color: _grey),
+                          overflow: TextOverflow.ellipsis),
+                    ]),
+                  ),
+                ]),
+                const SizedBox(height: 24),
+
+                // Nombre
+                _fieldLabel('Nombre completo'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _nombreController,
+                  style: GoogleFonts.poppins(fontSize: 14, color: _dark),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return 'El nombre no puede estar vacío';
+                    }
+                    if (v.trim().length < 3) return 'Mínimo 3 caracteres';
+                    return null;
+                  },
+                  decoration: _fieldDeco('Tu nombre completo', Icons.person_outline_rounded),
+                ),
+                const SizedBox(height: 16),
+
+                // Teléfono
+                _fieldLabel('Teléfono'),
+                const SizedBox(height: 6),
+                TextFormField(
+                  controller: _telefonoController,
+                  keyboardType: TextInputType.phone,
+                  style: GoogleFonts.poppins(fontSize: 14, color: _dark),
+                  validator: (v) {
+                    if (v != null && v.trim().isNotEmpty) {
+                      if (!RegExp(r'^\+?[0-9]{7,15}$').hasMatch(v.trim())) {
+                        return 'Ingresa un número válido';
+                      }
+                    }
+                    return null;
+                  },
+                  decoration: _fieldDeco('Ej. 0999999999', Icons.phone_outlined),
+                ),
+                const SizedBox(height: 16),
+
+                // Tipo de cuenta — radio cards
+                _fieldLabel('Tipo de cuenta'),
+                const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8E1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: const Color(0xFFFBC02D).withValues(alpha: 0.5)),
+                    color: const Color(0xFFF0FAFB),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
                   ),
-                  child: Row(children: [
-                    const Icon(Icons.info_outline_rounded,
-                        color: Color(0xFFFBC02D), size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Al guardar serás redirigido al panel de $_rolSeleccionado.',
-                        style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            color: const Color(0xFFF57F17),
-                            fontWeight: FontWeight.w500),
-                      ),
+                  child: Column(children: [
+                    _rolCard(
+                      value: 'usuario',
+                      icon: Icons.pets_rounded,
+                      title: 'Dueño de mascotas',
+                      subtitle: 'Gestiona tus mascotas y agenda citas',
+                      color: _teal,
+                    ),
+                    Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16),
+                    _rolCard(
+                      value: 'veterinario',
+                      icon: Icons.medical_services_outlined,
+                      title: 'Veterinario',
+                      subtitle: 'Atiende pacientes y gestiona tu consultorio',
+                      color: const Color(0xFF7C6FCD),
                     ),
                   ]),
                 ),
-              ],
 
-              const SizedBox(height: 24),
-
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: authController.isLoading ? null : _guardarPerfil,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _teal,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: authController.isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2))
-                      : Text('Guardar Cambios',
+                // Banner aviso cambio de rol
+                if (rolCambio) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8E1),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: const Color(0xFFFBC02D).withValues(alpha: 0.5)),
+                    ),
+                    child: Row(children: [
+                      const Icon(Icons.info_outline_rounded,
+                          color: Color(0xFFF57F17), size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Al guardar serás redirigido al panel de $_rolSeleccionado.',
                           style: GoogleFonts.poppins(
-                              fontSize: 16, fontWeight: FontWeight.w600)),
-                ),
-              ),
+                              fontSize: 11,
+                              color: const Color(0xFFF57F17),
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ],
 
-              const SizedBox(height: 8),
-            ],
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: authController.isLoading ? null : _guardarPerfil,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _teal,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      disabledBackgroundColor: _teal.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: authController.isLoading
+                        ? const SizedBox(
+                            width: 24, height: 24,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
+                        : Text('Guardar Cambios',
+                            style: GoogleFonts.poppins(
+                                fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildInputField(
-    String label,
-    TextEditingController controller,
-    IconData icon, {
-    TextInputType? keyboardType,
+  // Radio card para selección de rol
+  Widget _rolCard({
+    required String value,
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
   }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF2D2D2D)),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
-        prefixIcon: Icon(icon, color: _teal, size: 20),
-        filled: true,
-        fillColor: const Color(0xFFF0FAFB),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFBBEBF0), width: 1.2),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _teal, width: 2),
-        ),
+    final sel = _rolSeleccionado == value;
+    return InkWell(
+      onTap: () => setState(() => _rolSeleccionado = value),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: sel ? color.withValues(alpha: 0.15) : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon,
+                color: sel ? color : Colors.grey.shade400, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: sel ? _dark : Colors.grey.shade500)),
+              Text(subtitle,
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: Colors.grey.shade400)),
+            ]),
+          ),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: 20, height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: sel ? color : Colors.grey.shade300,
+                width: sel ? 5 : 2,
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
+
+  Widget _fieldLabel(String text) => Padding(
+        padding: const EdgeInsets.only(left: 2),
+        child: Text(text,
+            style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: _grey,
+                letterSpacing: 0.3)),
+      );
+
+  InputDecoration _fieldDeco(String hint, IconData icon) => InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 13),
+        prefixIcon: Icon(icon, color: _teal, size: 20),
+        filled: true,
+        fillColor: const Color(0xFFF0FAFB),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFBBEBF0), width: 1.2)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _teal, width: 2)),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE53935), width: 1.2)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE53935), width: 2)),
+      );
 }
 
 // ═══════════════════════════════════════════════════

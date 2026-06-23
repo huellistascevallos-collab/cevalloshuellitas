@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
+import '../../../domain/controllers/solicitud_adopcion_controller.dart';
 import '../../../data/models/mascota_model.dart';
 
 // ─── Paleta de colores Premium de la imagen ───────────────────────────────────
@@ -46,6 +48,8 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   }
 
   void _showPerfilDialog(BuildContext context, MascotaModel mascota) {
+    final uid = context.read<AuthController>().currentUser?.id;
+    final esDuenio = uid != null && mascota.usuarioId == uid;
     showDialog(
       context: context,
       builder: (_) => Consumer<MascotaController>(
@@ -152,23 +156,36 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            _showAdoptarDialog(context, mascota);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _orange,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            '¡Adoptar!',
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                          ),
-                        ),
+                        child: esDuenio
+                            ? OutlinedButton(
+                                onPressed: null,
+                                style: OutlinedButton.styleFrom(
+                                  side: BorderSide(color: _teal.withValues(alpha: 0.4)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Text(
+                                  '🏠 Tu mascota',
+                                  style: GoogleFonts.poppins(color: _teal, fontWeight: FontWeight.w600),
+                                ),
+                              )
+                            : ElevatedButton(
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _showAdoptarDialog(context, mascota);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _orange,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  padding: const EdgeInsets.symmetric(vertical: 12),
+                                ),
+                                child: Text(
+                                  '¡Adoptar!',
+                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
+                                ),
+                              ),
                       ),
                     ],
                   ),
@@ -237,7 +254,12 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                               ),
                             ),
                             const Spacer(),
-                            const SizedBox(width: 48),
+                            IconButton(
+                              icon: const Icon(Icons.list_alt_rounded, color: _dark, size: 24),
+                              tooltip: 'Mis solicitudes',
+                              onPressed: () => Navigator.pushNamed(
+                                  context, '/solicitudes_adopcion'),
+                            ),
                           ],
                         ),
                       ),
@@ -340,7 +362,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   }
 
   Widget _buildAdopcionCard(MascotaModel mascota) {
-    final adoptada = mascota.estado.toLowerCase() == 'adoptado';
+    // El estado 'para adoptar' es el único que llega aquí (filtra el servicio)
     final color = mascota.color;
     final descripcion = (mascota.descripcion != null && mascota.descripcion!.isNotEmpty)
         ? mascota.descripcion!
@@ -349,6 +371,9 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
     return Consumer<MascotaController>(
       builder: (context, controller, _) {
         final esFav = controller.esFavorito(mascota.id);
+        final uid = context.read<AuthController>().currentUser?.id;
+        final esDuenio = uid != null && mascota.usuarioId == uid;
+
         return Container(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
           decoration: BoxDecoration(
@@ -399,14 +424,14 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                                   style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w700, color: color),
                                 ),
                               ),
-                              if (adoptada) ...[
+                              if (esDuenio) ...[
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(10)),
+                                  decoration: BoxDecoration(color: _teal.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                                   child: Text(
-                                    '✓ Adoptado',
-                                    style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w700, color: Colors.green.shade600),
+                                    '🏠 Tuya',
+                                    style: GoogleFonts.poppins(fontSize: 9, fontWeight: FontWeight.w700, color: _teal),
                                   ),
                                 ),
                               ],
@@ -510,7 +535,19 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (!adoptada)
+                    if (esDuenio)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _teal.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '🏠 Tu mascota',
+                          style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: _teal),
+                        ),
+                      )
+                    else
                       GestureDetector(
                         onTap: () => _showAdoptarDialog(context, mascota),
                         child: Container(
@@ -530,15 +567,6 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                             '¡Adoptar!',
                             style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
                           ),
-                        ),
-                      )
-                    else
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
-                        child: Text(
-                          'Ya tiene hogar ❤️',
-                          style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green.shade600),
                         ),
                       ),
                   ],
@@ -592,31 +620,148 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   }
 
   void _showAdoptarDialog(BuildContext context, MascotaModel mascota) {
+    final uid = context.read<AuthController>().currentUser?.id;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Debes iniciar sesión para enviar una solicitud'),
+      ));
+      return;
+    }
+
+    // Bloquear al dueño de adoptar su propia mascota
+    if (mascota.usuarioId == uid) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Esta mascota te pertenece, no puedes adoptarla.',
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+            ),
+          ]),
+          backgroundColor: _teal,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          '¿Adoptar a ${mascota.nombre}?',
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: _dark),
-        ),
-        content: Text(
-          'Mascota lista para encontrar un nuevo hogar lleno de amor.\n\nUn asesor se pondrá en contacto contigo para el proceso de adopción.',
-          style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade700),
+        title: Row(children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: _orange.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.volunteer_activism_rounded,
+                color: _orange, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text('Adoptar a ${mascota.nombre}',
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: _dark)),
+          ),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Al confirmar, se enviará una solicitud al dueño de la mascota.',
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: Colors.grey.shade600, height: 1.5),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _orange.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _orange.withValues(alpha: 0.2)),
+              ),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded,
+                    color: _orange, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'El dueño revisará tu solicitud y te notificará su decisión.',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: _orange, height: 1.4),
+                  ),
+                ),
+              ]),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: GoogleFonts.poppins(color: Colors.grey)),
+            child: Text('Cancelar',
+                style: GoogleFonts.poppins(
+                    color: Colors.grey, fontWeight: FontWeight.w600)),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _orange,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          Consumer<SolicitudAdopcionController>(
+            builder: (ctx, ctrl, _) => ElevatedButton(
+              onPressed: ctrl.isLoading
+                  ? null
+                  : () async {
+                      final ok = await ctrl.enviarSolicitud(
+                        usuaId: uid,
+                        mascId: mascota.id,
+                      );
+                      if (!context.mounted) return;
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Row(children: [
+                          Icon(
+                            ok
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.error_outline_rounded,
+                            color: Colors.white, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ok
+                                  ? '¡Solicitud enviada! El dueño te contactará pronto.'
+                                  : (ctrl.errorMessage ?? 'Error al enviar'),
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        ]),
+                        backgroundColor:
+                            ok ? const Color(0xFF43B89C) : const Color(0xFFE53935),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ));
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _orange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: ctrl.isLoading
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : Text('Enviar Solicitud',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
             ),
-            child: Text('Confirmar', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
           ),
         ],
       ),

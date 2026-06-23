@@ -126,7 +126,7 @@ class _ServiciosScreenState extends State<ServiciosScreen>
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
       child: AnimatedBuilder(
         animation: _tabController,
-        builder: (_, _) => Row(
+        builder: (ctx, child) => Row(
           children: [
             _tabPill(
               index: 0,
@@ -362,7 +362,7 @@ class _ServiciosScreenState extends State<ServiciosScreen>
               child: ClipOval(
                 child: (v.fotoUrl != null && v.fotoUrl!.isNotEmpty)
                     ? Image.network(v.fotoUrl!, fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => const Icon(
+                        errorBuilder: (ctx, err, stack) => const Icon(
                               Icons.person_outline_rounded,
                               size: 30,
                               color: _teal,
@@ -379,7 +379,9 @@ class _ServiciosScreenState extends State<ServiciosScreen>
                   Row(children: [
                     Expanded(
                       child: Text(
-                        'Dr/a. Veterinario',
+                        v.nombre != null && v.nombre!.isNotEmpty
+                            ? 'Dr/a. ${v.nombre}'
+                            : 'Dr/a. Veterinario',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -695,7 +697,7 @@ class _VeterinariosServicioSheet extends StatelessWidget {
                 child: ClipOval(
                   child: (vsm.fotoUrl != null && vsm.fotoUrl!.isNotEmpty)
                       ? Image.network(vsm.fotoUrl!, fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(
+                          errorBuilder: (ctx, err, stack) => const Icon(
                                 Icons.person_outline_rounded,
                                 size: 26,
                                 color: _teal,

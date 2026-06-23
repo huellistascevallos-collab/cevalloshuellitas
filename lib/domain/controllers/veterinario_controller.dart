@@ -46,6 +46,7 @@ class VeterinarioController extends ChangeNotifier {
         final vetConId = VeterinarioModel(
           id: _perfil!.id,
           usuarioId: _perfil!.usuarioId,
+          nombre: _perfil!.nombre,
           especialidad: vet.especialidad,
           experiencia: vet.experiencia,
           tarifa: vet.tarifa,
@@ -88,6 +89,7 @@ class VeterinarioController extends ChangeNotifier {
       _perfil = VeterinarioModel(
         id: _perfil!.id,
         usuarioId: _perfil!.usuarioId,
+        nombre: _perfil!.nombre,
         especialidad: _perfil!.especialidad,
         experiencia: _perfil!.experiencia,
         tarifa: _perfil!.tarifa,

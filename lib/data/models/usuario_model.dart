@@ -21,13 +21,13 @@ class UsuarioModel {
   /// que proviene de la tabla `usuarios` en Supabase.
   factory UsuarioModel.fromJson(Map<String, dynamic> json) {
     return UsuarioModel(
-      id: json['usua_id'] as String,
-      nombre: json['usua_nombre'] as String,
-      correo: json['usua_correo'] as String,
+      id: json['usua_id']?.toString() ?? '',
+      nombre: json['usua_nombre']?.toString() ?? '',
+      correo: json['usua_correo']?.toString() ?? '',
       telefono: json['usua_telefono'] as String?,
-      rol: json['usua_rol'] as String,
+      rol: json['usua_rol']?.toString() ?? 'usuario',
       fechaRegistro: json['usua_fecha_registro'] != null
-          ? DateTime.parse(json['usua_fecha_registro'] as String)
+          ? DateTime.tryParse(json['usua_fecha_registro'].toString())
           : null,
       fotoUrl: json['usua_foto_url'] as String?,
     );

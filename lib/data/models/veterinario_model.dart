@@ -1,6 +1,7 @@
 class VeterinarioModel {
   final String id;        // vete_id
   final String usuarioId; // usua_id
+  final String? nombre;        // usuarios.usua_nombre (via join)
   final String? especialidad;  // vete_especialidad
   final int? experiencia;      // vete_experiencia (años)
   final double? tarifa;        // vete_tarifa
@@ -13,6 +14,7 @@ class VeterinarioModel {
   VeterinarioModel({
     required this.id,
     required this.usuarioId,
+    this.nombre,
     this.especialidad,
     this.experiencia,
     this.tarifa,
@@ -27,9 +29,11 @@ class VeterinarioModel {
     final usuario = json['usuarios'] as Map<String, dynamic>?;
     final fotoUrl = usuario?['usua_foto_url'] as String? ??
         json['vete_foto_url'] as String?;
+    final nombre = usuario?['usua_nombre'] as String?;
     return VeterinarioModel(
       id: json['vete_id']?.toString() ?? '',
       usuarioId: json['usua_id']?.toString() ?? '',
+      nombre: nombre,
       especialidad: json['vete_especialidad'] as String?,
       experiencia: json['vete_experiencia'] as int?,
       tarifa: json['vete_tarifa'] != null
@@ -78,6 +82,7 @@ class VeterinarioModel {
   }
 
   VeterinarioModel copyWith({
+    String? nombre,
     String? especialidad,
     int? experiencia,
     double? tarifa,
@@ -90,6 +95,7 @@ class VeterinarioModel {
     return VeterinarioModel(
       id: id,
       usuarioId: usuarioId,
+      nombre: nombre ?? this.nombre,
       especialidad: especialidad ?? this.especialidad,
       experiencia: experiencia ?? this.experiencia,
       tarifa: tarifa ?? this.tarifa,

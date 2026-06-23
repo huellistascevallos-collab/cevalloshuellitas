@@ -8,6 +8,7 @@ import 'domain/controllers/mascota_controller.dart';
 import 'domain/controllers/cita_controller.dart';
 import 'domain/controllers/veterinario_controller.dart';
 import 'domain/controllers/servicio_controller.dart';
+import 'domain/controllers/solicitud_adopcion_controller.dart';
 import 'presentation/screens/login/login_screen.dart';
 import 'presentation/screens/login/register_screen.dart';
 import 'presentation/screens/usuario/home_screen.dart';
@@ -18,7 +19,9 @@ import 'presentation/screens/veterinario/vet_perfil_screen.dart';
 import 'presentation/screens/usuario/mis_mascotas_screen.dart';
 import 'presentation/screens/usuario/adopciones_screen.dart';
 import 'presentation/screens/usuario/servicios_screen.dart';
+import 'presentation/screens/usuario/solicitudes_adopcion_screen.dart';
 import 'presentation/screens/veterinario/urgencias_screen.dart';
+import 'presentation/screens/usuario/urgencias_usuario_screen.dart';
 import 'presentation/screens/usuario/perfil_screen.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'presentation/screens/usuario/mapa_veterinarios_screen.dart';
@@ -39,6 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CitaController()),
         ChangeNotifierProvider(create: (_) => VeterinarioController()),
         ChangeNotifierProvider(create: (_) => ServicioController()),
+        ChangeNotifierProvider(create: (_) => SolicitudAdopcionController()),
       ],
       child: const MyApp(),
     ),
@@ -79,9 +83,11 @@ class MyApp extends StatelessWidget {
         '/vet_home': (context) => const VetHomeScreen(),
         '/mis_mascotas': (context) => const MisMascotasScreen(),
         '/adopciones': (context) => const AdopcionesScreen(),
+        '/solicitudes_adopcion': (context) => const SolicitudesAdopcionScreen(),
         '/servicios': (context) => const ServiciosScreen(),
 
         '/urgencias': (context) => const UrgenciasScreen(),
+        '/urgencias_usuario': (context) => const UrgenciasUsuarioScreen(),
         '/perfil': (context) => const PerfilScreen(),
         '/vet_citas': (context) => const VetCitasScreen(),
         '/vet_mascotas': (context) => const VetMascotasScreen(),

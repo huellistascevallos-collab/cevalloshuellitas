@@ -6,6 +6,9 @@
         android:maxSdkVersion="32" />
     <!-- Permiso de internet para subir a Supabase -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Permisos de ubicación para el mapa de veterinarios -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:label="aplicacion"
