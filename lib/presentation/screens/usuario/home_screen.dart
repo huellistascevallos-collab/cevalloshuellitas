@@ -680,7 +680,10 @@ class _HomeScreenState extends State<HomeScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           IconButton(icon: const Icon(Icons.home, color: Color(0xFF1CB5C9), size: 30), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.map_outlined, color: Colors.grey, size: 28), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.map_outlined, color: Colors.grey, size: 28),
+            onPressed: () => Navigator.pushNamed(context, '/mapa_veterinarios'),
+          ),
           const SizedBox(width: 50), // Espacio para el botón flotante central (+)
           IconButton(
             icon: const Icon(Icons.favorite_outline, color: Colors.grey, size: 28),

@@ -4,8 +4,11 @@ class VeterinarioModel {
   final String? especialidad;  // vete_especialidad
   final int? experiencia;      // vete_experiencia (años)
   final double? tarifa;        // vete_tarifa
-  final String? fotoUrl;       // vete_foto_url
+  final String? fotoUrl;       // usua_foto_url (via join)
   final bool disponible;       // vete_disponible
+  final double? latitud;       // vete_latitud
+  final double? longitud;      // vete_longitud
+  final String? direccion;     // vete_direccion
 
   VeterinarioModel({
     required this.id,
@@ -15,12 +18,13 @@ class VeterinarioModel {
     this.tarifa,
     this.fotoUrl,
     this.disponible = true,
+    this.latitud,
+    this.longitud,
+    this.direccion,
   });
 
   factory VeterinarioModel.fromJson(Map<String, dynamic> json) {
     final usuario = json['usuarios'] as Map<String, dynamic>?;
-    // La foto real viene de usua_foto_url (tabla usuarios).
-    // vete_foto_url queda como fallback por compatibilidad.
     final fotoUrl = usuario?['usua_foto_url'] as String? ??
         json['vete_foto_url'] as String?;
     return VeterinarioModel(
@@ -33,6 +37,13 @@ class VeterinarioModel {
           : null,
       fotoUrl: fotoUrl,
       disponible: json['vete_disponible'] as bool? ?? true,
+      latitud: json['vete_latitud'] != null
+          ? double.tryParse(json['vete_latitud'].toString())
+          : null,
+      longitud: json['vete_longitud'] != null
+          ? double.tryParse(json['vete_longitud'].toString())
+          : null,
+      direccion: json['vete_direccion'] as String?,
     );
   }
 
@@ -46,18 +57,23 @@ class VeterinarioModel {
       if (tarifa != null) 'vete_tarifa': tarifa,
       if (fotoUrl != null && fotoUrl!.isNotEmpty) 'vete_foto_url': fotoUrl,
       'vete_disponible': disponible,
+      if (latitud != null) 'vete_latitud': latitud,
+      if (longitud != null) 'vete_longitud': longitud,
+      if (direccion != null && direccion!.isNotEmpty) 'vete_direccion': direccion,
     };
   }
 
   /// Para UPDATE — solo campos editables
   Map<String, dynamic> toUpdateJson() {
     return {
-      'vete_especialidad':
-          especialidad?.isNotEmpty == true ? especialidad : null,
+      'vete_especialidad': especialidad?.isNotEmpty == true ? especialidad : null,
       'vete_experiencia': experiencia,
       'vete_tarifa': tarifa,
       'vete_foto_url': fotoUrl?.isNotEmpty == true ? fotoUrl : null,
       'vete_disponible': disponible,
+      'vete_latitud': latitud,
+      'vete_longitud': longitud,
+      'vete_direccion': direccion?.isNotEmpty == true ? direccion : null,
     };
   }
 
@@ -67,6 +83,9 @@ class VeterinarioModel {
     double? tarifa,
     String? fotoUrl,
     bool? disponible,
+    double? latitud,
+    double? longitud,
+    String? direccion,
   }) {
     return VeterinarioModel(
       id: id,
@@ -76,6 +95,9 @@ class VeterinarioModel {
       tarifa: tarifa ?? this.tarifa,
       fotoUrl: fotoUrl ?? this.fotoUrl,
       disponible: disponible ?? this.disponible,
+      latitud: latitud ?? this.latitud,
+      longitud: longitud ?? this.longitud,
+      direccion: direccion ?? this.direccion,
     );
   }
 }

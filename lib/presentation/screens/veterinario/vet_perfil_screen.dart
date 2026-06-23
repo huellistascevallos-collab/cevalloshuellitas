@@ -10,6 +10,7 @@ import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/veterinario_controller.dart';
 import '../../../domain/controllers/servicio_controller.dart';
 import '../shared/historial_citas_screen.dart';
+import 'seleccionar_ubicacion_screen.dart';
 
 class VetPerfilScreen extends StatefulWidget {
   const VetPerfilScreen({super.key});
@@ -228,6 +229,16 @@ class _VetPerfilScreenState extends State<VetPerfilScreen> {
                                       'Editar información',
                                       const Color(0xFF43B89C),
                                       () => _showEditSheet(context, vet)),
+                                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
+                                  _optionRow(Icons.location_on_rounded,
+                                      'Establecer mi ubicación en el mapa',
+                                      const Color(0xFF1CB5C9),
+                                      () => Navigator.push(context,
+                                        MaterialPageRoute(builder: (_) =>
+                                          ChangeNotifierProvider.value(
+                                            value: context.read<VeterinarioController>(),
+                                            child: const SeleccionarUbicacionScreen(),
+                                          )))),
                                   const Divider(height: 1, color: Color(0xFFF0F0F0)),
                                   _optionRow(Icons.lock_outline_rounded,
                                       'Cambiar contraseña',

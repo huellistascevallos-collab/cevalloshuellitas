@@ -60,4 +60,18 @@ class VeterinarioService {
         .single();
     return VeterinarioModel.fromJson(response);
   }
+
+  /// Guarda la ubicación (latitud, longitud, dirección) del veterinario.
+  Future<void> guardarUbicacion({
+    required String veteId,
+    required double latitud,
+    required double longitud,
+    String? direccion,
+  }) async {
+    await _client.from('veterinarios').update({
+      'vete_latitud': latitud,
+      'vete_longitud': longitud,
+      'vete_direccion': direccion,
+    }).eq('vete_id', veteId);
+  }
 }

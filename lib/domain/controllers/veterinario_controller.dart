@@ -51,6 +51,9 @@ class VeterinarioController extends ChangeNotifier {
           tarifa: vet.tarifa,
           fotoUrl: vet.fotoUrl,
           disponible: vet.disponible,
+          latitud: _perfil!.latitud,
+          longitud: _perfil!.longitud,
+          direccion: _perfil!.direccion,
         );
         _perfil = await _service.actualizarVeterinario(vetConId);
       }
@@ -59,6 +62,46 @@ class VeterinarioController extends ChangeNotifier {
       return true;
     } catch (e) {
       _errorMessage = 'Error al guardar: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Guarda la ubicación del veterinario en el mapa.
+  Future<bool> guardarUbicacion({
+    required double latitud,
+    required double longitud,
+    String? direccion,
+  }) async {
+    if (_perfil == null || _perfil!.id.isEmpty) return false;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _service.guardarUbicacion(
+        veteId: _perfil!.id,
+        latitud: latitud,
+        longitud: longitud,
+        direccion: direccion,
+      );
+      _perfil = VeterinarioModel(
+        id: _perfil!.id,
+        usuarioId: _perfil!.usuarioId,
+        especialidad: _perfil!.especialidad,
+        experiencia: _perfil!.experiencia,
+        tarifa: _perfil!.tarifa,
+        fotoUrl: _perfil!.fotoUrl,
+        disponible: _perfil!.disponible,
+        latitud: latitud,
+        longitud: longitud,
+        direccion: direccion,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Error al guardar ubicación: $e';
       _isLoading = false;
       notifyListeners();
       return false;

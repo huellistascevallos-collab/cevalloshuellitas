@@ -21,6 +21,7 @@ import 'presentation/screens/usuario/servicios_screen.dart';
 import 'presentation/screens/veterinario/urgencias_screen.dart';
 import 'presentation/screens/usuario/perfil_screen.dart';
 import 'presentation/screens/splash_screen.dart';
+import 'presentation/screens/usuario/mapa_veterinarios_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -85,6 +86,7 @@ class MyApp extends StatelessWidget {
         '/vet_citas': (context) => const VetCitasScreen(),
         '/vet_mascotas': (context) => const VetMascotasScreen(),
         '/vet_perfil': (context) => const VetPerfilScreen(),
+        '/mapa_veterinarios': (context) => const MapaVeterinariosScreen(),
       },
     );
   }
