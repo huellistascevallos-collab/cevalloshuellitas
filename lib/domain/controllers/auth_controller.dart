@@ -73,9 +73,12 @@ class AuthController extends ChangeNotifier {
     } catch (e) {
       final msg = e.toString();
       if (msg.contains('cancelado')) {
-        _errorMessage = null; // El usuario canceló, no es un error
+        _errorMessage = null;
       } else {
-        _errorMessage = 'Error al iniciar sesión con Google.';
+        // Mostramos el mensaje completo para poder diagnosticar
+        _errorMessage = msg
+            .replaceAll('Exception: ', '')
+            .replaceAll('exception: ', '');
       }
       _isLoading = false;
       notifyListeners();

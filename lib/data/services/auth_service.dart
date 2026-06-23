@@ -86,56 +86,88 @@ class AuthService {
   /// automáticamente en la tabla `usuarios`.
   Future<UsuarioModel> signInWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
-      // serverClientId es el Web Client ID de Google Cloud Console.
-      // En Android NO se usa clientId (ese es solo para iOS).
-      // Este ID permite obtener el idToken necesario para Supabase.
       serverClientId: googleWebClientId,
       scopes: ['email', 'profile'],
     );
 
-    final googleUser = await googleSignIn.signIn();
+    // Forzar selección de cuenta siempre (evita tokens cacheados corruptos)
+    await googleSignIn.signOut();
+
+    GoogleSignInAccount? googleUser;
+    try {
+      googleUser = await googleSignIn.signIn();
+    } catch (e) {
+      throw Exception('Error al abrir Google: $e');
+    }
+
     if (googleUser == null) {
       throw Exception('Inicio de sesión con Google cancelado.');
     }
 
-    final googleAuth = await googleUser.authentication;
-    final idToken = googleAuth.idToken;
-    if (idToken == null) {
-      throw Exception('No se pudo obtener el token de Google.');
+    GoogleSignInAuthentication googleAuth;
+    try {
+      googleAuth = await googleUser.authentication;
+    } catch (e) {
+      throw Exception('Error obteniendo autenticación de Google: $e');
     }
 
-    // Autenticar en Supabase con el ID Token de Google
-    final authResponse = await _client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: googleAuth.accessToken,
-    );
+    final idToken = googleAuth.idToken;
+    if (idToken == null) {
+      throw Exception(
+          'No se pudo obtener el token de Google. '
+          'Verifica que el Web Client ID en supabase_config.dart '
+          'sea el OAuth de tipo "Aplicación web".');
+    }
+
+    // Autenticar en Supabase
+    AuthResponse authResponse;
+    try {
+      authResponse = await _client.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: googleAuth.accessToken,
+      );
+    } catch (e) {
+      throw Exception('Error autenticando en Supabase con Google: $e');
+    }
 
     if (authResponse.user == null) {
-      throw Exception('No se pudo autenticar con Google en Supabase.');
+      throw Exception('Supabase no devolvió un usuario tras el login con Google.');
     }
 
     final userId = authResponse.user!.id;
+    final nombre =
+        googleUser.displayName ?? googleUser.email.split('@').first;
+    final correo = googleUser.email;
 
-    // Verificar si el perfil ya existe en la tabla usuarios
-    final existing = await _client
-        .from('usuarios')
-        .select()
-        .eq('usua_id', userId)
-        .maybeSingle();
+    // Verificar si el perfil ya existe
+    Map<String, dynamic>? existing;
+    try {
+      existing = await _client
+          .from('usuarios')
+          .select()
+          .eq('usua_id', userId)
+          .maybeSingle();
+    } catch (e) {
+      debugPrint('Error verificando perfil: $e');
+      existing = null;
+    }
 
     if (existing == null) {
-      // Primera vez con Google: crear perfil en la tabla usuarios
-      final nombre = googleUser.displayName ?? googleUser.email.split('@').first;
-      final correo = googleUser.email;
-
-      await _client.from('usuarios').insert({
-        'usua_id': userId,
-        'usua_nombre': nombre,
-        'usua_correo': correo,
-        'usua_telefono': null,
-        'usua_rol': 'usuario',
-      });
+      // Primera vez — crear perfil
+      try {
+        await _client.from('usuarios').insert({
+          'usua_id': userId,
+          'usua_nombre': nombre,
+          'usua_correo': correo,
+          'usua_telefono': null,
+          'usua_rol': 'usuario',
+        });
+      } catch (e) {
+        throw Exception(
+            'No se pudo crear el perfil del usuario en la base de datos: $e. '
+            'Verifica las políticas RLS de la tabla "usuarios" en Supabase.');
+      }
 
       return UsuarioModel(
         id: userId,
