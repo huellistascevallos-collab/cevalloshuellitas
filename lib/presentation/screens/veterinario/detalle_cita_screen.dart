@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../data/models/cita_model.dart';
 import '../../../data/models/calificacion_model.dart';
 import '../../../data/services/calificacion_service.dart';
-import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 
 class DetalleCitaScreen extends StatefulWidget {

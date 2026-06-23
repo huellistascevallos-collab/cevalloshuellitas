@@ -4,14 +4,14 @@ import 'package:provider/provider.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../data/models/mascota_model.dart';
 
-// ─── Paleta de la imagen ───────────────────────────────────────────────────
-const _turquesa = Color(0xFF5BBFBF);       // cabecera y botones
-const _turquesaIcon = Color(0xFF4AAFAF);   // iconos categoría (ligeramente más oscuro)
-const _naranja = Color(0xFFF0954A);        // botón adopta hoy
-const _bgBlanco = Color(0xFFFFFFFF);       // fondo general
-const _bgCard = Color(0xFFF3F3F3);         // fondo imagen en card
-const _textoDark = Color(0xFF1A1A2E);      // texto principal
-// ──────────────────────────────────────────────────────────────────────────
+// ─── Paleta de colores exacta de la imagen ────────────────────────────────────
+const _teal = Color(0xFF2FA3A3);       // Botones de categoría, "Ver Perfil" y FAB
+const _orange = Color(0xFFE58D57);     // Botón "¡Adopta Hoy!" y badge de notificaciones
+const _headerBg = Color(0xFFBBE7EC);   // Fondo celeste pastel de la cabecera
+const _bg = Color(0xFFF6FAFA);         // Fondo general de la app
+const _dark = Color(0xFF262A2B);       // Títulos y textos principales
+const _grey = Color(0xFF8A9BB0);       // Textos secundarios e íconos inactivos
+const _white = Colors.white;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -45,31 +45,45 @@ class _HomeScreenState extends State<HomeScreen> {
           minChildSize: 0.3,
           builder: (_, sc) => Container(
             decoration: const BoxDecoration(
-              color: _bgBlanco,
+              color: _white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
             ),
             child: Column(children: [
               const SizedBox(height: 12),
+              // Handle bar
               Center(
                 child: Container(
-                  width: 40, height: 4,
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2)),
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
+              // Title row
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(children: [
-                  const Icon(Icons.favorite_rounded,
-                      color: Color(0xFFE53935), size: 22),
-                  const SizedBox(width: 10),
-                  Text('Mis Favoritos',
-                      style: GoogleFonts.poppins(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: _textoDark)),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.favorite_rounded,
+                        color: Color(0xFFE53935), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Mis Favoritos',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: _dark,
+                    ),
+                  ),
                 ]),
               ),
               const SizedBox(height: 8),
@@ -79,14 +93,26 @@ class _HomeScreenState extends State<HomeScreen> {
                     final favs = ctrl.mascotasFavoritas;
                     if (favs.isEmpty) {
                       return Center(
-                        child: Text('No tienes mascotas favoritas aún.',
-                            style: GoogleFonts.poppins(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.favorite_border_rounded,
+                                size: 60, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No tienes mascotas favoritas aún.',
+                              style: GoogleFonts.poppins(
                                 color: Colors.grey.shade500,
-                                fontSize: 14)),
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     }
                     return ListView.builder(
                       controller: sc,
+                      physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 8),
                       itemCount: favs.length,
@@ -103,11 +129,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: ListTile(
                             contentPadding: const EdgeInsets.all(10),
                             leading: Container(
-                              width: 52, height: 52,
+                              width: 52,
+                              height: 52,
                               decoration: BoxDecoration(
-                                  color: _bgCard,
-                                  borderRadius:
-                                      BorderRadius.circular(12)),
+                                color: const Color(0xFFF3F9FA),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                               child: (m.fotoUrl != null &&
                                       m.fotoUrl!.isNotEmpty)
                                   ? ClipRRect(
@@ -116,17 +143,23 @@ class _HomeScreenState extends State<HomeScreen> {
                                       child: Image.network(m.fotoUrl!,
                                           fit: BoxFit.cover))
                                   : const Icon(Icons.pets_rounded,
-                                      color: _turquesa, size: 28),
+                                      color: _teal, size: 28),
                             ),
-                            title: Text(m.nombre,
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 14)),
+                            title: Text(
+                              m.nombre,
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                                color: _dark,
+                              ),
+                            ),
                             subtitle: Text(
-                                '${m.especie} · ${m.raza}',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500)),
+                              '${m.especie} · ${m.raza}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 11,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
                             trailing: GestureDetector(
                               onTap: () => ctrl.toggleFavorito(m.id),
                               child: const Icon(Icons.favorite_rounded,
@@ -155,17 +188,19 @@ class _HomeScreenState extends State<HomeScreen> {
           final esFav = ctrl.esFavorito(mascota.id);
           return Dialog(
             shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20)),
-            backgroundColor: _bgBlanco,
+                borderRadius: BorderRadius.circular(24)),
+            backgroundColor: _white,
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Stack(children: [
                   Container(
-                    width: 140, height: 140,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
-                        color: _bgCard,
-                        borderRadius: BorderRadius.circular(18)),
+                      color: const Color(0xFFF3F9FA),
+                      borderRadius: BorderRadius.circular(18),
+                    ),
                     child: (mascota.fotoUrl != null &&
                             mascota.fotoUrl!.isNotEmpty)
                         ? ClipRRect(
@@ -173,23 +208,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Image.network(mascota.fotoUrl!,
                                 fit: BoxFit.cover))
                         : const Icon(Icons.pets_rounded,
-                            size: 80, color: _turquesa),
+                            size: 80, color: _teal),
                   ),
                   Positioned(
-                    top: 8, right: 8,
+                    top: 8,
+                    right: 8,
                     child: GestureDetector(
                       onTap: () => ctrl.toggleFavorito(mascota.id),
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                            color: _bgBlanco,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                  color: Colors.black
-                                      .withValues(alpha: 0.12),
-                                  blurRadius: 6)
-                            ]),
+                          color: _white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
                         child: Icon(
                           esFav
                               ? Icons.favorite_rounded
@@ -204,35 +241,42 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ]),
                 const SizedBox(height: 14),
-                Text(mascota.nombre,
-                    style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: _textoDark)),
-                Text('${mascota.especie} · ${mascota.raza}',
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, color: Colors.grey.shade500)),
+                Text(
+                  mascota.nombre,
+                  style: GoogleFonts.poppins(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _dark,
+                  ),
+                ),
+                Text(
+                  '${mascota.especie} · ${mascota.raza}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  _infoChip(mascota.edad, Icons.cake_outlined,
-                      _naranja),
+                  _infoChip(mascota.edad, Icons.cake_outlined, _orange),
                   const SizedBox(width: 8),
-                  _infoChip(mascota.genero,
-                      Icons.transgender_rounded, _turquesa),
+                  _infoChip(
+                      mascota.genero, Icons.transgender_rounded, _teal),
                 ]),
                 const SizedBox(height: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                      color: const Color(0xFFF8F8F8),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.grey.shade200)),
+                    color: _bg,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _teal.withValues(alpha: 0.15)),
+                  ),
                   child: Text(
-                    mascota.descripcion ??
-                        'Sin descripción disponible.',
+                    mascota.descripcion ?? 'Sin descripción disponible.',
                     style: GoogleFonts.poppins(
-                        fontSize: 12, color: Colors.grey.shade600),
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -242,18 +286,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ElevatedButton(
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _turquesa,
+                      backgroundColor: _teal,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
-                      padding:
-                          const EdgeInsets.symmetric(vertical: 13),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                     ),
-                    child: Text('Cerrar',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15)),
+                    child: Text(
+                      'Cerrar',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
                   ),
                 ),
               ]),
@@ -266,398 +312,452 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _infoChip(String label, IconData icon, Color color) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 5),
-        Text(label,
-            style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color)),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
       ]),
     );
   }
 
-  // ── Build principal ──────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<MascotaController>();
     final mascotas = ctrl.mascotasAdopcion;
 
     return Scaffold(
-      backgroundColor: _bgBlanco,
-      body: Column(
-        children: [
-          // Cabecera
-          _buildHeader(context),
+      backgroundColor: _bg,
+      // ── FAB central con anillo exterior de la imagen ──
+      floatingActionButton: Container(
+        width: 68,
+        height: 68,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: _teal.withValues(alpha: 0.25),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(4), // Espaciador para el anillo exterior blanco
+        child: Container(
+          decoration: const BoxDecoration(
+            color: _teal,
+            shape: BoxShape.circle,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => Navigator.pushNamed(context, '/mis_mascotas'),
+              child: const Icon(
+                Icons.pets_rounded,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+          ),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-          // Contenido
-          Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 28),
+      // ── Bottom bar ──
+      bottomNavigationBar: _buildBottomBar(context),
 
-                  // Título sección
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      'Mascotas Destacadas',
-                      style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: _textoDark,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Cards
-                  SizedBox(
-                    height: 215,
-                    child: ctrl.isLoadingAdopciones
-                        ? const Center(
-                            child: CircularProgressIndicator(
-                                color: _turquesa))
-                        : mascotas.isEmpty
-                            ? Center(
-                                child: Text(
-                                  'No hay mascotas destacadas.',
-                                  style: GoogleFonts.poppins(
-                                      color: Colors.grey.shade400),
-                                ),
-                              )
-                            : ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                physics:
-                                    const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 20),
-                                itemCount: mascotas.length,
-                                itemBuilder: (context, i) =>
-                                    _petCard(context, mascotas[i]),
-                              ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Botón Adopta Hoy
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 22),
-                    child: GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                          context, '/adopciones'),
-                      child: Container(
-                        width: double.infinity,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: _naranja,
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _naranja
-                                  .withValues(alpha: 0.35),
-                              blurRadius: 14,
-                              offset: const Offset(0, 5),
-                            ),
-                          ],
-                        ),
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // ── Cabecera celeste con curva exacta ──
+          SliverToBoxAdapter(
+            child: ClipPath(
+              clipper: _HeaderWaveClipper(),
+              child: Container(
+                height: 250,
+                color: _headerBg,
+                child: SafeArea(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      // Fila Logo y Campana
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Row(
-                          mainAxisAlignment:
-                              MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              '¡Adopta Hoy!',
-                              style: GoogleFonts.poppins(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.pets_rounded,
+                                  color: _dark,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Huellitas',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w800,
+                                    color: _dark,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 10),
-                            const Icon(
-                                Icons.volunteer_activism_rounded,
-                                color: Colors.white,
-                                size: 24),
+                            // Botón de notificaciones con número
+                            Stack(
+                              children: [
+                                Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.3),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    icon: const Icon(
+                                      Icons.notifications_none_rounded,
+                                      color: _dark,
+                                      size: 24,
+                                    ),
+                                    onPressed: () {},
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: _orange,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 16,
+                                      minHeight: 16,
+                                    ),
+                                    child: const Center(
+                                      child: Text(
+                                        '1',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 8,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      // Fila de botones de categoría
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _categoryBtn(
+                              context,
+                              Icons.pets_rounded,
+                              'Mis Mascotas',
+                              '/mis_mascotas',
+                            ),
+                            _categoryBtn(
+                              context,
+                              Icons.volunteer_activism_rounded,
+                              'Adopciones',
+                              '/adopciones',
+                            ),
+                            _categoryBtn(
+                              context,
+                              Icons.medical_services_rounded,
+                              'Servicios',
+                              '/servicios',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // ── Sección Mascotas Destacadas ──
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 24),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    'Mascotas Destacadas',
+                    style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: _dark,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 236,
+                  child: ctrl.isLoadingAdopciones
+                      ? const Center(
+                          child: CircularProgressIndicator(color: _teal))
+                      : mascotas.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.pets_rounded,
+                                      size: 52,
+                                      color: Colors.grey.shade300),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'No hay mascotas destacadas.',
+                                    style: GoogleFonts.poppins(
+                                      color: Colors.grey.shade400,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              physics: const BouncingScrollPhysics(),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              itemCount: mascotas.length,
+                              itemBuilder: (context, i) =>
+                                  _petCard(context, mascotas[i]),
+                            ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // ── Botón ¡Adopta Hoy! ──
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GestureDetector(
+                    onTap: () => Navigator.pushNamed(context, '/adopciones'),
+                    child: Container(
+                      width: double.infinity,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: _orange,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _orange.withValues(alpha: 0.35),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '¡Adopta Hoy!',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.volunteer_activism_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 100),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Botón de Categoría ──────────────────────────────────────────────────────
+  Widget _categoryBtn(BuildContext context, IconData icon, String label, String route) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, route),
+      child: Column(
+        children: [
+          Container(
+            width: 68,
+            height: 68,
+            decoration: BoxDecoration(
+              color: _teal,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [
+                BoxShadow(
+                  color: _teal.withValues(alpha: 0.2),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 28),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: _dark,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Tarjeta de Mascota ────────────────────────────────────────────────────
+  Widget _petCard(BuildContext context, MascotaModel mascota) {
+    return Container(
+      width: 156,
+      margin: const EdgeInsets.only(right: 16, bottom: 8),
+      decoration: BoxDecoration(
+        color: _white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            flex: 6,
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF3F9FA),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Image.network(
+                        mascota.fotoUrl!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.pets_rounded, size: 48, color: _teal),
+                    ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    mascota.nombre.toLowerCase(), // Mantiene el nombre en minúscula tal como en la imagen
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _dark,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  GestureDetector(
+                    onTap: () => _showPerfil(context, mascota),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _teal,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Ver Perfil',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 100),
                 ],
               ),
             ),
           ),
         ],
       ),
-
-      // ── Bottom bar ──
-      bottomNavigationBar: _buildBottomBar(context),
-
-      // ── FAB pata central ──
-      floatingActionButton: Container(
-        width: 60,
-        height: 60,
-        decoration: BoxDecoration(
-          color: _turquesa,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: _turquesa.withValues(alpha: 0.4),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: GestureDetector(
-          onTap: () =>
-              Navigator.pushNamed(context, '/mis_mascotas'),
-          child: const Icon(Icons.pets_rounded,
-              color: Colors.white, size: 28),
-        ),
-      ),
-      floatingActionButtonLocation:
-          FloatingActionButtonLocation.centerDocked,
     );
   }
 
-  // ── Cabecera turquesa ────────────────────────────────────────────────────
-  Widget _buildHeader(BuildContext context) {
-    return ClipPath(
-      clipper: _HeaderClipper(),
-      child: Container(
-        color: _turquesa,
-        padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 8,
-          bottom: 52,
-        ),
-        child: Column(children: [
-          // AppBar
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const SizedBox(width: 40),
-                Row(children: [
-                  const Icon(Icons.pets_rounded,
-                      color: Colors.white, size: 24),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Huellitas',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ]),
-                Stack(children: [
-                  IconButton(
-                    icon: const Icon(
-                        Icons.notifications_none_rounded,
-                        color: Colors.white,
-                        size: 27),
-                    onPressed: () {},
-                  ),
-                  Positioned(
-                    right: 8, top: 8,
-                    child: Container(
-                      width: 15, height: 15,
-                      decoration: const BoxDecoration(
-                          color: _naranja,
-                          shape: BoxShape.circle),
-                      child: Center(
-                        child: Text('1',
-                            style: GoogleFonts.poppins(
-                                fontSize: 9,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ),
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          // Categorías
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 36),
-            child: Row(
-              mainAxisAlignment:
-                  MainAxisAlignment.spaceBetween,
-              children: [
-                _catBtn(context, Icons.pets_rounded,
-                    'Mis\nMascotas', '/mis_mascotas'),
-                _catBtn(context,
-                    Icons.volunteer_activism_rounded,
-                    'Adopciones', '/adopciones'),
-                _catBtn(context,
-                    Icons.medical_services_outlined,
-                    'Servicios', '/servicios'),
-              ],
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-
-  Widget _catBtn(BuildContext context, IconData icon,
-      String label, String route) {
-    return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, route),
-      child: Column(children: [
-        Container(
-          width: 70, height: 70,
-          decoration: BoxDecoration(
-            color: _turquesaIcon,
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: Icon(icon, color: Colors.white, size: 36),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            height: 1.2,
-          ),
-        ),
-      ]),
-    );
-  }
-
-  // ── Card mascota ─────────────────────────────────────────────────────────
-  Widget _petCard(BuildContext context, MascotaModel mascota) {
-    return Container(
-      width: 148,
-      margin: const EdgeInsets.only(right: 16),
-      decoration: BoxDecoration(
-        color: _bgBlanco,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(children: [
-        // Zona imagen
-        Expanded(
-          child: Container(
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              color: _bgCard,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
-              ),
-            ),
-            child: (mascota.fotoUrl != null &&
-                    mascota.fotoUrl!.isNotEmpty)
-                ? ClipRRect(
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                    ),
-                    child: Image.network(mascota.fotoUrl!,
-                        fit: BoxFit.cover))
-                : const Icon(Icons.pets_rounded,
-                    size: 76, color: _turquesa),
-          ),
-        ),
-        // Info
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Column(children: [
-            Text(
-              mascota.nombre,
-              style: GoogleFonts.poppins(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: _textoDark,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            GestureDetector(
-              onTap: () => _showPerfil(context, mascota),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  color: _turquesa,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Center(
-                  child: Text(
-                    'Ver Perfil',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ]),
-        ),
-      ]),
-    );
-  }
-
-  // ── Bottom Navigation Bar ────────────────────────────────────────────────
+  // ── Barra de Navegación Inferior ──────────────────────────────────────────
   Widget _buildBottomBar(BuildContext context) {
     return BottomAppBar(
       shape: const CircularNotchedRectangle(),
-      notchMargin: 7,
-      color: _bgBlanco,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.06),
+      notchMargin: 8,
+      color: _white,
+      elevation: 12,
+      shadowColor: Colors.black.withValues(alpha: 0.1),
       child: SizedBox(
-        height: 58,
+        height: 60,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _navBtn(Icons.home_rounded, 0, onTap: () {}),
             _navBtn(Icons.map_outlined, 1,
-                onTap: () => Navigator.pushNamed(
-                    context, '/mapa_veterinarios')),
-            const SizedBox(width: 60), // hueco para FAB
+                onTap: () => Navigator.pushNamed(context, '/mapa_veterinarios')),
+            const SizedBox(width: 48), // Espacio para el FAB central
             _navBtn(Icons.favorite_border_rounded, 2,
                 onTap: () => _showFavoritosDialog(context)),
             _navBtn(Icons.person_outline_rounded, 3,
-                onTap: () =>
-                    Navigator.pushNamed(context, '/perfil')),
+                onTap: () => Navigator.pushNamed(context, '/perfil')),
           ],
         ),
       ),
     );
   }
 
-  Widget _navBtn(IconData icon, int index,
-      {required VoidCallback onTap}) {
+  Widget _navBtn(IconData icon, int index, {required VoidCallback onTap}) {
     final active = _selectedIndex == index;
     return GestureDetector(
       onTap: () {
@@ -665,28 +765,32 @@ class _HomeScreenState extends State<HomeScreen> {
         onTap();
       },
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: 14, vertical: 8),
-        child: Icon(icon,
-            size: 26,
-            color: active
-                ? _turquesa
-                : Colors.grey.shade400),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Icon(
+          icon,
+          size: 26,
+          color: active ? _teal : _grey,
+        ),
       ),
     );
   }
 }
 
-// ── Header Clipper ────────────────────────────────────────────────────────
-class _HeaderClipper extends CustomClipper<Path> {
+// ── Cortador de cabecera en onda convexa ──────────────────────────────────────
+class _HeaderWaveClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-    path.lineTo(0, size.height - 48);
+    path.lineTo(0, size.height - 40);
+    // Dibuja una curva de bezier cuadrática que baja en el centro
     path.quadraticBezierTo(
-        size.width / 2, size.height + 8,
-        size.width, size.height - 48);
+      size.width / 2,
+      size.height + 15,
+      size.width,
+      size.height - 40,
+    );
     path.lineTo(size.width, 0);
     path.close();
     return path;

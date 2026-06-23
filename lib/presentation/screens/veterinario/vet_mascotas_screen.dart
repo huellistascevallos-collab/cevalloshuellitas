@@ -622,7 +622,7 @@ class _VetAddMascotaSheetState extends State<_VetAddMascotaSheet> {
         border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
       ),
       child: DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         decoration: InputDecoration(border: InputBorder.none,
             labelText: label,
             labelStyle: GoogleFonts.poppins(

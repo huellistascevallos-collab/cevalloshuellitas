@@ -257,7 +257,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         Consumer<MascotaController>(
           builder: (ctx, ctrl, _) {
             if (ctrl.isLoading) {
-              return const Center(child: CircularProgressIndicator(color: Color(0xFF1CB5C9)));
+              return const Center(child: CircularProgressIndicator(color: Color(0xFF5BBFBF)));
             }
             return Column(children: [
               // Lista de mascotas del usuario
@@ -351,10 +351,10 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: sel ? const Color(0xFF7C6FCD).withValues(alpha: 0.08) : Colors.white,
+          color: sel ? const Color(0xFF5BBFBF).withValues(alpha: 0.08) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-              color: sel ? const Color(0xFF7C6FCD) : Colors.grey.shade200,
+              color: sel ? const Color(0xFF5BBFBF) : Colors.grey.shade200,
               width: sel ? 2 : 1.2),
           boxShadow: [BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -364,10 +364,10 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
           Container(
             width: 48, height: 48,
             decoration: BoxDecoration(
-                color: const Color(0xFF7C6FCD).withValues(alpha: 0.12),
+                color: const Color(0xFF5BBFBF).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12)),
             child: const Icon(Icons.add_circle_outline_rounded,
-                color: Color(0xFF7C6FCD), size: 26),
+                color: Color(0xFF5BBFBF), size: 26),
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -378,7 +378,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
                 style: GoogleFonts.poppins(fontSize: 11, color: Colors.grey.shade500)),
           ])),
           if (sel) const Icon(Icons.check_circle_rounded,
-              color: Color(0xFF7C6FCD), size: 22),
+              color: Color(0xFF5BBFBF), size: 22),
         ]),
       ),
     );
@@ -528,7 +528,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         // Card fecha
         _resumenCard(
           icon: Icons.calendar_today_rounded,
-          color: const Color(0xFF7C6FCD),
+          color: const Color(0xFF5BBFBF),
           titulo: 'Fecha y Hora',
           items: [
             _resumenRow('Fecha',
@@ -540,7 +540,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         // Card cliente
         _resumenCard(
           icon: Icons.person_rounded,
-          color: const Color(0xFFE58D57),
+          color: const Color(0xFFF0954A),
           titulo: 'Propietario',
           items: [
             _resumenRow('Nombre', user?.nombre ?? '—'),
@@ -665,7 +665,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
         decoration: BoxDecoration(
             color: const Color(0xFFE8F6F8),
             borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: const Color(0xFF1CB5C9), size: 18),
+        child: Icon(icon, color: const Color(0xFF5BBFBF), size: 18),
       ),
       const SizedBox(width: 10),
       Text(t, style: GoogleFonts.poppins(
@@ -689,7 +689,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
     return InputDecoration(
       labelText: label,
       labelStyle: GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 12),
-      prefixIcon: Icon(icon, color: const Color(0xFF1CB5C9), size: 18),
+      prefixIcon: Icon(icon, color: const Color(0xFF5BBFBF), size: 18),
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -700,7 +700,7 @@ class _AgendarCitaScreenState extends State<AgendarCitaScreen> {
           borderSide: const BorderSide(color: Color(0xFFDDEEF0), width: 1.2)),
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF1CB5C9), width: 2)),
+          borderSide: const BorderSide(color: Color(0xFF5BBFBF), width: 2)),
     );
   }
 }

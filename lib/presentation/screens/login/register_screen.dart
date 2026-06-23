@@ -81,7 +81,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3FF),
+      backgroundColor: const Color(0xFFF0F9FF),
       body: Stack(
         children: [
           // Fondo con ondas decorativas
@@ -114,12 +114,12 @@ class _RegisterScreenState extends State<RegisterScreen>
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: const Color(0xFFE0DCFF),
+                                    color: const Color(0xFFDCEEF0),
                                     width: 1.2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF7C6FCD)
+                                      color: const Color(0xFF5BBFBF)
                                           .withValues(alpha: 0.08),
                                       blurRadius: 10,
                                       offset: const Offset(0, 3),
@@ -129,7 +129,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 child: const Icon(
                                   Icons.arrow_back_ios_new_rounded,
                                   size: 18,
-                                  color: Color(0xFF7C6FCD),
+                                  color: Color(0xFF5BBFBF),
                                 ),
                               ),
                             ),
@@ -174,13 +174,13 @@ class _RegisterScreenState extends State<RegisterScreen>
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: const Color(0xFFE0DCFF),
+                              color: const Color(0xFFDCEEF0),
                               width: 1.2,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color:
-                                    const Color(0xFF7C6FCD).withValues(alpha: 0.07),
+                                    const Color(0xFF5BBFBF).withValues(alpha: 0.07),
                                 blurRadius: 24,
                                 offset: const Offset(0, 10),
                               ),
@@ -243,20 +243,20 @@ class _RegisterScreenState extends State<RegisterScreen>
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF8F7FF),
+                                    color: const Color(0xFFF3FAFD),
                                     borderRadius: BorderRadius.circular(16),
                                     border: Border.all(
-                                      color: const Color(0xFFE0DCFF),
+                                      color: const Color(0xFFDCEEF0),
                                       width: 1.2,
                                     ),
                                   ),
                                   child: DropdownButtonFormField<String>(
-                                    value: _selectedRol,
+                                    initialValue: _selectedRol,
                                     decoration: const InputDecoration(
                                       border: InputBorder.none,
                                       icon: Icon(
                                         Icons.badge_outlined,
-                                        color: Color(0xFF7C6FCD),
+                                        color: Color(0xFF5BBFBF),
                                         size: 22,
                                       ),
                                     ),
@@ -380,7 +380,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                             : _handleRegister,
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor:
-                                              const Color(0xFF7C6FCD),
+                                              const Color(0xFF5BBFBF),
                                           foregroundColor: Colors.white,
                                           elevation: 0,
                                           shape: RoundedRectangleBorder(
@@ -388,7 +388,7 @@ class _RegisterScreenState extends State<RegisterScreen>
                                                 BorderRadius.circular(14),
                                           ),
                                           disabledBackgroundColor:
-                                              const Color(0xFF7C6FCD)
+                                              const Color(0xFF5BBFBF)
                                                   .withValues(alpha: 0.5),
                                         ),
                                         child: auth.isLoading
@@ -425,10 +425,10 @@ class _RegisterScreenState extends State<RegisterScreen>
                             '¿Ya tienes cuenta? Iniciar sesión',
                             style: GoogleFonts.poppins(
                               fontSize: 13,
-                              color: const Color(0xFF7C6FCD),
+                              color: const Color(0xFF5BBFBF),
                               fontWeight: FontWeight.w600,
                               decoration: TextDecoration.underline,
-                              decorationColor: const Color(0xFF7C6FCD),
+                              decorationColor: const Color(0xFF5BBFBF),
                             ),
                           ),
                         ),
@@ -453,15 +453,15 @@ class _RegisterWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintTop = Paint()
-      ..color = const Color(0xFFDDD6FF).withValues(alpha: 0.5)
+      ..color = const Color(0xFFCBEBFC).withValues(alpha: 0.6)
       ..style = PaintingStyle.fill;
 
     final paintBottom = Paint()
-      ..color = const Color(0xFFE8E3FF).withValues(alpha: 0.35)
+      ..color = const Color(0xFFD4EFFF).withValues(alpha: 0.4)
       ..style = PaintingStyle.fill;
 
     final paintAccent = Paint()
-      ..color = const Color(0xFFC4B5FD).withValues(alpha: 0.2)
+      ..color = const Color(0xFFBBE5F9).withValues(alpha: 0.25)
       ..style = PaintingStyle.fill;
 
     final pathTop = Path()

@@ -725,7 +725,7 @@ class _VetEditSheetState extends State<_VetEditSheet> {
                   Switch(
                     value: _disponible,
                     onChanged: (v) => setState(() => _disponible = v),
-                    activeColor: const Color(0xFF1CB5C9),
+                    activeThumbColor: const Color(0xFF1CB5C9),
                   ),
                 ]),
               ),
@@ -788,7 +788,7 @@ class _VetEditSheetState extends State<_VetEditSheet> {
                                   color: const Color(0xFF1A1A2E))),
                           trailing: Switch(
                             value: asignado,
-                            activeColor: s.color,
+                            activeThumbColor: s.color,
                             onChanged: (val) async {
                               final veteId = context
                                       .read<VeterinarioController>()
@@ -981,7 +981,7 @@ class _VetAvatarPickerState extends State<_VetAvatarPicker> {
                       ? Image.network(
                           fotoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const Icon(
+                          errorBuilder: (_, _, _) => const Icon(
                             Icons.person_rounded,
                             size: 52,
                             color: Color(0xFF1CB5C9),

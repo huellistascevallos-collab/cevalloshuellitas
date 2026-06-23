@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3FF),
+      backgroundColor: const Color(0xFFF0F9FF),
       body: Stack(
         children: [
           // Fondo con ondas decorativas
@@ -240,10 +240,10 @@ class _LoginScreenState extends State<LoginScreen>
                             '¿No tienes cuenta? Crear cuenta',
                             style: GoogleFonts.poppins(
                               fontSize: 13,
-                              color: const Color(0xFF7C6FCD),
+                              color: const Color(0xFF5BBFBF),
                               fontWeight: FontWeight.w600,
                               decoration: TextDecoration.underline,
-                              decorationColor: const Color(0xFF7C6FCD),
+                              decorationColor: const Color(0xFF5BBFBF),
                             ),
                           ),
                         ),
@@ -287,18 +287,18 @@ class _MethodButton extends StatelessWidget {
         height: 58,
         decoration: BoxDecoration(
           color: isActive
-              ? const Color(0xFF7C6FCD).withValues(alpha: 0.08)
+              ? const Color(0xFF5BBFBF).withValues(alpha: 0.08)
               : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isActive
-                ? const Color(0xFF7C6FCD)
-                : const Color(0xFFE0DCFF),
+                ? const Color(0xFF5BBFBF)
+                : const Color(0xFFDCEEF0),
             width: isActive ? 1.8 : 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
+              color: const Color(0xFF5BBFBF).withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -311,7 +311,7 @@ class _MethodButton extends StatelessWidget {
               icon,
               size: 22,
               color: isActive
-                  ? const Color(0xFF7C6FCD)
+                  ? const Color(0xFF5BBFBF)
                   : const Color(0xFF555555),
             ),
             const SizedBox(width: 14),
@@ -321,7 +321,7 @@ class _MethodButton extends StatelessWidget {
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
                 color: isActive
-                    ? const Color(0xFF7C6FCD)
+                    ? const Color(0xFF5BBFBF)
                     : const Color(0xFF2D2D2D),
               ),
             ),
@@ -360,12 +360,12 @@ class _GoogleButton extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: const Color(0xFFE0DCFF),
+                color: const Color(0xFFDCEEF0),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
+                  color: const Color(0xFF5BBFBF).withValues(alpha: 0.06),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -442,10 +442,10 @@ class _EmailForm extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE0DCFF), width: 1.2),
+        border: Border.all(color: const Color(0xFFDCEEF0), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
+            color: const Color(0xFF5BBFBF).withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -497,9 +497,9 @@ class _EmailForm extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF7C6FCD),
+                    color: const Color(0xFF339D9D),
                     decoration: TextDecoration.underline,
-                    decorationColor: const Color(0xFF7C6FCD),
+                    decorationColor: const Color(0xFF339D9D),
                   ),
                 ),
               ),
@@ -512,14 +512,14 @@ class _EmailForm extends StatelessWidget {
                   child: ElevatedButton(
                     onPressed: auth.isLoading ? null : onLogin,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C6FCD),
+                      backgroundColor: const Color(0xFF5BBFBF),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14),
                       ),
                       disabledBackgroundColor:
-                          const Color(0xFF7C6FCD).withValues(alpha: 0.5),
+                          const Color(0xFF5BBFBF).withValues(alpha: 0.5),
                     ),
                     child: auth.isLoading
                         ? const SizedBox(
@@ -568,15 +568,15 @@ class _WavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paintTop = Paint()
-      ..color = const Color(0xFFDDD6FF).withValues(alpha: 0.55)
+      ..color = const Color(0xFFCBEBFC).withValues(alpha: 0.65)
       ..style = PaintingStyle.fill;
 
     final paintBottom = Paint()
-      ..color = const Color(0xFFE8E3FF).withValues(alpha: 0.4)
+      ..color = const Color(0xFFD4EFFF).withValues(alpha: 0.45)
       ..style = PaintingStyle.fill;
 
     final paintAccent = Paint()
-      ..color = const Color(0xFFC4B5FD).withValues(alpha: 0.25)
+      ..color = const Color(0xFFBBE5F9).withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
 
     // Blob superior izquierdo
@@ -780,7 +780,7 @@ class _RecuperarContrasenaScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3FF),
+      backgroundColor: const Color(0xFFF0F9FF),
       body: Stack(
         children: [
           const _WaveBackground(),
@@ -795,7 +795,7 @@ class _RecuperarContrasenaScreenState
                   Row(children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                          color: Color(0xFF7C6FCD), size: 22),
+                          color: Color(0xFF5BBFBF), size: 22),
                       onPressed: () {
                         if (_paso == 2) {
                           setState(() => _paso = 1);
@@ -811,11 +811,11 @@ class _RecuperarContrasenaScreenState
                   Container(
                     width: 80, height: 80,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF7C6FCD).withValues(alpha: 0.1),
+                      color: const Color(0xFF5BBFBF).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.lock_reset_rounded,
-                        color: Color(0xFF7C6FCD), size: 40),
+                        color: Color(0xFF5BBFBF), size: 40),
                   ),
                   const SizedBox(height: 20),
 
@@ -924,10 +924,10 @@ class _RecuperarContrasenaScreenState
                         '¿No recibiste el código? Enviar de nuevo',
                         style: GoogleFonts.poppins(
                             fontSize: 13,
-                            color: const Color(0xFF7C6FCD),
+                            color: const Color(0xFF5BBFBF),
                             fontWeight: FontWeight.w600,
                             decoration: TextDecoration.underline,
-                            decorationColor: const Color(0xFF7C6FCD)),
+                            decorationColor: const Color(0xFF5BBFBF)),
                       ),
                     ),
                   ],
@@ -974,7 +974,7 @@ class _RecuperarContrasenaScreenState
         hintStyle:
             GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
         prefixIcon:
-            centerText ? null : Icon(icon, color: const Color(0xFF7C6FCD), size: 20),
+            centerText ? null : Icon(icon, color: const Color(0xFF5BBFBF), size: 20),
         suffixIcon: suffixIcon,
         filled: true,
         fillColor: Colors.white,
@@ -984,11 +984,11 @@ class _RecuperarContrasenaScreenState
         enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide:
-                const BorderSide(color: Color(0xFFE0DCFF), width: 1.2)),
+                const BorderSide(color: Color(0xFFDCEEF0), width: 1.2)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide:
-                const BorderSide(color: Color(0xFF7C6FCD), width: 2)),
+                const BorderSide(color: Color(0xFF5BBFBF), width: 2)),
       ),
     );
   }
@@ -999,7 +999,7 @@ class _RecuperarContrasenaScreenState
     required VoidCallback onTap,
   }) {
     return Consumer<AuthController>(
-      builder: (_, auth, __) => SizedBox(
+      builder: (_, auth, _) => SizedBox(
         width: double.infinity,
         height: 54,
         child: ElevatedButton.icon(
@@ -1016,11 +1016,11 @@ class _RecuperarContrasenaScreenState
                 fontSize: 15, fontWeight: FontWeight.w600),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF7C6FCD),
+            backgroundColor: const Color(0xFF5BBFBF),
             foregroundColor: Colors.white,
             elevation: 0,
             disabledBackgroundColor:
-                const Color(0xFF7C6FCD).withValues(alpha: 0.5),
+                const Color(0xFF5BBFBF).withValues(alpha: 0.5),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16)),
           ),

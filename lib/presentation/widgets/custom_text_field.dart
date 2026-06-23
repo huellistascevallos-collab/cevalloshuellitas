@@ -50,7 +50,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         prefixIcon: widget.icon != null
             ? Icon(
                 widget.icon,
-                color: const Color(0xFF7C6FCD),
+                color: const Color(0xFF5BBFBF),
                 size: 22,
               )
             : null,
@@ -71,7 +71,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
               )
             : null,
         filled: true,
-        fillColor: const Color(0xFFF8F7FF),
+        fillColor: const Color(0xFFF3FAFD),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 20,
           vertical: 18,
@@ -82,15 +82,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(
-            color: const Color(0xFFE0DCFF),
+          borderSide: const BorderSide(
+            color: Color(0xFFDCEEF0),
             width: 1.2,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(
-            color: Color(0xFF7C6FCD),
+            color: Color(0xFF5BBFBF),
             width: 2,
           ),
         ),
