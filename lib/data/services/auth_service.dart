@@ -237,9 +237,33 @@ class AuthService {
     }
   }
 
-  /// Envía un correo de recuperación de contraseña al email indicado.
+  /// Envía un OTP de recuperación de contraseña al email indicado.
   Future<void> enviarRecuperacionContrasena(String correo) async {
     await _client.auth.resetPasswordForEmail(correo.trim());
+  }
+
+  /// Verifica el OTP de recuperación y actualiza la contraseña.
+  /// Lanza excepción si el código es incorrecto o expiró.
+  Future<void> verificarOtpYCambiarContrasena({
+    required String correo,
+    required String otp,
+    required String nuevaContrasena,
+  }) async {
+    // 1. Verificar el OTP — esto crea una sesión temporal
+    final response = await _client.auth.verifyOTP(
+      email: correo.trim(),
+      token: otp.trim(),
+      type: OtpType.recovery,
+    );
+
+    if (response.user == null) {
+      throw Exception('Código inválido o expirado. Solicita uno nuevo.');
+    }
+
+    // 2. Con la sesión activa, actualizar la contraseña
+    await _client.auth.updateUser(
+      UserAttributes(password: nuevaContrasena),
+    );
   }
 
   /// Sube la foto de perfil del usuario a Supabase Storage

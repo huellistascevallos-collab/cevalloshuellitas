@@ -424,183 +424,11 @@ class _EmailForm extends StatelessWidget {
   });
 
   void _showRecuperarContrasena(BuildContext context) {
-    final correoCtrl = TextEditingController(text: emailController.text.trim());
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Handle
-              Center(
-                child: Container(
-                  width: 40, height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              // Ícono
-              Center(
-                child: Container(
-                  width: 64, height: 64,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF7C6FCD).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.lock_reset_rounded,
-                      color: Color(0xFF7C6FCD), size: 32),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Center(
-                child: Text('Recuperar contraseña',
-                    style: GoogleFonts.poppins(
-                        fontSize: 20, fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1A2E))),
-              ),
-              const SizedBox(height: 6),
-              Center(
-                child: Text(
-                  'Ingresa tu correo y te enviaremos\nun enlace para restablecer tu contraseña.',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: Colors.grey.shade500, height: 1.5),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Campo correo
-              TextField(
-                controller: correoCtrl,
-                keyboardType: TextInputType.emailAddress,
-                style: GoogleFonts.poppins(
-                    fontSize: 14, color: const Color(0xFF2D2D2D)),
-                decoration: InputDecoration(
-                  labelText: 'Correo electrónico',
-                  labelStyle: GoogleFonts.poppins(
-                      color: Colors.grey.shade500, fontSize: 13),
-                  prefixIcon: const Icon(Icons.email_outlined,
-                      color: Color(0xFF7C6FCD), size: 20),
-                  filled: true,
-                  fillColor: const Color(0xFFF5F3FF),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide.none),
-                  enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: Color(0xFFE0DCFF), width: 1.2)),
-                  focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(
-                          color: Color(0xFF7C6FCD), width: 2)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Botón enviar
-              Consumer<AuthController>(
-                builder: (ctx, auth, _) => SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: auth.isLoading
-                        ? null
-                        : () async {
-                            final correo = correoCtrl.text.trim();
-                            if (correo.isEmpty ||
-                                !RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$')
-                                    .hasMatch(correo)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Ingresa un correo válido',
-                                      style: GoogleFonts.poppins(
-                                          fontSize: 13)),
-                                  backgroundColor:
-                                      const Color(0xFFE53935),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12)),
-                                ),
-                              );
-                              return;
-                            }
-                            final ok =
-                                await auth.recuperarContrasena(correo);
-                            if (!ctx.mounted) return;
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(children: [
-                                  Icon(
-                                    ok
-                                        ? Icons.mark_email_read_outlined
-                                        : Icons.error_outline_rounded,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      ok
-                                          ? 'Correo enviado. Revisa tu bandeja de entrada.'
-                                          : auth.errorMessage ??
-                                              'Error al enviar el correo.',
-                                      style: GoogleFonts.poppins(
-                                          fontSize: 13),
-                                    ),
-                                  ),
-                                ]),
-                                backgroundColor: ok
-                                    ? const Color(0xFF43B89C)
-                                    : const Color(0xFFE53935),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(12)),
-                                duration: const Duration(seconds: 5),
-                              ),
-                            );
-                          },
-                    icon: auth.isLoading
-                        ? const SizedBox(
-                            width: 18, height: 18,
-                            child: CircularProgressIndicator(
-                                color: Colors.white, strokeWidth: 2))
-                        : const Icon(Icons.send_rounded, size: 20),
-                    label: Text(
-                      auth.isLoading ? 'Enviando…' : 'Enviar enlace',
-                      style: GoogleFonts.poppins(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C6FCD),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      disabledBackgroundColor:
-                          const Color(0xFF7C6FCD).withValues(alpha: 0.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _RecuperarContrasenaScreen(
+          correoInicial: emailController.text.trim(),
         ),
       ),
     );
@@ -833,4 +661,371 @@ class _GoogleLogoPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ────────────────────────────────────────────────
+// Pantalla: Recuperar contraseña con código OTP
+// ────────────────────────────────────────────────
+class _RecuperarContrasenaScreen extends StatefulWidget {
+  final String correoInicial;
+  const _RecuperarContrasenaScreen({required this.correoInicial});
+
+  @override
+  State<_RecuperarContrasenaScreen> createState() =>
+      _RecuperarContrasenaScreenState();
+}
+
+class _RecuperarContrasenaScreenState
+    extends State<_RecuperarContrasenaScreen> {
+  // Paso 1: ingresar correo y enviar OTP
+  // Paso 2: ingresar código OTP + nueva contraseña
+  int _paso = 1;
+
+  final _correoCtrl = TextEditingController();
+  final _otpCtrl = TextEditingController();
+  final _nuevaPassCtrl = TextEditingController();
+  final _confirmarPassCtrl = TextEditingController();
+
+  bool _obscureNueva = true;
+  bool _obscureConfirmar = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _correoCtrl.text = widget.correoInicial;
+  }
+
+  @override
+  void dispose() {
+    _correoCtrl.dispose();
+    _otpCtrl.dispose();
+    _nuevaPassCtrl.dispose();
+    _confirmarPassCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _enviarCodigo() async {
+    final correo = _correoCtrl.text.trim();
+    if (correo.isEmpty ||
+        !RegExp(r'^[\w\.-]+@[\w\.-]+\.\w+$').hasMatch(correo)) {
+      _mostrarError('Ingresa un correo válido.');
+      return;
+    }
+    final auth = context.read<AuthController>();
+    final ok = await auth.recuperarContrasena(correo);
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _paso = 2);
+    } else {
+      _mostrarError(auth.errorMessage ??
+          'No se encontró una cuenta con ese correo.');
+    }
+  }
+
+  Future<void> _cambiarContrasena() async {
+    final otp = _otpCtrl.text.trim();
+    final nueva = _nuevaPassCtrl.text;
+    final confirmar = _confirmarPassCtrl.text;
+
+    if (otp.length < 6) {
+      _mostrarError('El código debe tener 6 dígitos.');
+      return;
+    }
+    if (nueva.length < 6) {
+      _mostrarError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (nueva != confirmar) {
+      _mostrarError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    final auth = context.read<AuthController>();
+    final ok = await auth.verificarOtpYCambiarContrasena(
+      correo: _correoCtrl.text.trim(),
+      otp: otp,
+      nuevaContrasena: nueva,
+    );
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.check_circle_outline_rounded,
+              color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Text('¡Contraseña actualizada correctamente!',
+              style: GoogleFonts.poppins(fontSize: 13)),
+        ]),
+        backgroundColor: const Color(0xFF43B89C),
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } else {
+      _mostrarError(auth.errorMessage ??
+          'Código incorrecto o expirado. Solicita uno nuevo.');
+    }
+  }
+
+  void _mostrarError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg, style: GoogleFonts.poppins(fontSize: 13)),
+      backgroundColor: const Color(0xFFE53935),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F3FF),
+      body: Stack(
+        children: [
+          const _WaveBackground(),
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: Column(
+                children: [
+                  const SizedBox(height: 16),
+                  // AppBar
+                  Row(children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Color(0xFF7C6FCD), size: 22),
+                      onPressed: () {
+                        if (_paso == 2) {
+                          setState(() => _paso = 1);
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+
+                  // Ícono
+                  Container(
+                    width: 80, height: 80,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C6FCD).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.lock_reset_rounded,
+                        color: Color(0xFF7C6FCD), size: 40),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Título y subtítulo
+                  Text(
+                    _paso == 1
+                        ? 'Recuperar contraseña'
+                        : 'Ingresa el código',
+                    style: GoogleFonts.poppins(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A1A2E)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _paso == 1
+                        ? 'Te enviaremos un código de 6 dígitos\nal correo que ingreses.'
+                        : 'Revisa tu correo ${_correoCtrl.text}\ny escribe el código de 6 dígitos.',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                        height: 1.5),
+                  ),
+                  const SizedBox(height: 36),
+
+                  // ── PASO 1: Correo ──
+                  if (_paso == 1) ...[
+                    _inputField(
+                      controller: _correoCtrl,
+                      label: 'Correo electrónico',
+                      icon: Icons.email_outlined,
+                      keyboard: TextInputType.emailAddress,
+                    ),
+                    const SizedBox(height: 24),
+                    _botonPrincipal(
+                      label: 'Enviar código',
+                      icon: Icons.send_rounded,
+                      onTap: _enviarCodigo,
+                    ),
+                  ],
+
+                  // ── PASO 2: OTP + nueva contraseña ──
+                  if (_paso == 2) ...[
+                    // Campo código OTP
+                    _inputField(
+                      controller: _otpCtrl,
+                      label: 'Código de 6 dígitos',
+                      icon: Icons.pin_outlined,
+                      keyboard: TextInputType.number,
+                      maxLength: 6,
+                      centerText: true,
+                      fontSize: 22,
+                      letterSpacing: 10,
+                    ),
+                    const SizedBox(height: 16),
+                    _inputField(
+                      controller: _nuevaPassCtrl,
+                      label: 'Nueva contraseña',
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscureNueva,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureNueva
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscureNueva = !_obscureNueva),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _inputField(
+                      controller: _confirmarPassCtrl,
+                      label: 'Confirmar contraseña',
+                      icon: Icons.lock_outline_rounded,
+                      obscure: _obscureConfirmar,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureConfirmar
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: Colors.grey.shade400,
+                          size: 20,
+                        ),
+                        onPressed: () => setState(
+                            () => _obscureConfirmar = !_obscureConfirmar),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _botonPrincipal(
+                      label: 'Cambiar contraseña',
+                      icon: Icons.check_rounded,
+                      onTap: _cambiarContrasena,
+                    ),
+                    const SizedBox(height: 16),
+                    // Reenviar código
+                    GestureDetector(
+                      onTap: () => setState(() {
+                        _paso = 1;
+                        _otpCtrl.clear();
+                      }),
+                      child: Text(
+                        '¿No recibiste el código? Enviar de nuevo',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF7C6FCD),
+                            fontWeight: FontWeight.w600,
+                            decoration: TextDecoration.underline,
+                            decorationColor: const Color(0xFF7C6FCD)),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 40),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _inputField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboard,
+    bool obscure = false,
+    Widget? suffixIcon,
+    int? maxLength,
+    bool centerText = false,
+    double fontSize = 14,
+    double letterSpacing = 0,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboard,
+      obscureText: obscure,
+      maxLength: maxLength,
+      textAlign: centerText ? TextAlign.center : TextAlign.start,
+      style: GoogleFonts.poppins(
+          fontSize: fontSize,
+          color: const Color(0xFF2D2D2D),
+          letterSpacing: letterSpacing,
+          fontWeight: centerText ? FontWeight.w700 : FontWeight.normal),
+      decoration: InputDecoration(
+        counterText: '',
+        labelText: centerText ? null : label,
+        hintText: centerText ? label : null,
+        labelStyle:
+            GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
+        hintStyle:
+            GoogleFonts.poppins(color: Colors.grey.shade400, fontSize: 14),
+        prefixIcon:
+            centerText ? null : Icon(icon, color: const Color(0xFF7C6FCD), size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide:
+                const BorderSide(color: Color(0xFFE0DCFF), width: 1.2)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+            borderSide:
+                const BorderSide(color: Color(0xFF7C6FCD), width: 2)),
+      ),
+    );
+  }
+
+  Widget _botonPrincipal({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Consumer<AuthController>(
+      builder: (_, auth, __) => SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton.icon(
+          onPressed: auth.isLoading ? null : onTap,
+          icon: auth.isLoading
+              ? const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+              : Icon(icon, size: 20),
+          label: Text(
+            auth.isLoading ? 'Procesando…' : label,
+            style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w600),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF7C6FCD),
+            foregroundColor: Colors.white,
+            elevation: 0,
+            disabledBackgroundColor:
+                const Color(0xFF7C6FCD).withValues(alpha: 0.5),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16)),
+          ),
+        ),
+      ),
+    );
+  }
 }

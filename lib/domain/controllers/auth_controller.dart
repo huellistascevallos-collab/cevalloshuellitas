@@ -248,8 +248,7 @@ class AuthController extends ChangeNotifier {
     }
   }
 
-  /// Envía un correo de restablecimiento de contraseña.
-  /// Retorna `true` si se envió correctamente, `false` si hubo error.
+  /// Envía un OTP de recuperación de contraseña.
   Future<bool> recuperarContrasena(String correo) async {
     _isLoading = true;
     _errorMessage = null;
@@ -261,6 +260,37 @@ class AuthController extends ChangeNotifier {
       return true;
     } catch (e) {
       _errorMessage = 'No se pudo enviar el correo. Verifica la dirección.';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// Verifica el código OTP y cambia la contraseña.
+  Future<bool> verificarOtpYCambiarContrasena({
+    required String correo,
+    required String otp,
+    required String nuevaContrasena,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      await _authService.verificarOtpYCambiarContrasena(
+        correo: correo,
+        otp: otp,
+        nuevaContrasena: nuevaContrasena,
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = _mapAuthError(e.message);
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
       _isLoading = false;
       notifyListeners();
       return false;
