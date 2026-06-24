@@ -146,16 +146,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final user = authController.currentUser;
-    final mascotaController = context.watch<MascotaController>();
-    final mascotas = mascotaController.mascotas;
     final isVet = user?.rol == 'veterinario';
-    // Citas del usuario
-    final citaCtrl = context.watch<CitaController>();
-    final citasPendientes = citaCtrl.citasDelUsuario
-        .where((c) =>
-            c.estado.toLowerCase() == 'pendiente' ||
-            c.estado.toLowerCase() == 'confirmada')
-        .length;
 
     return Scaffold(
       backgroundColor: _bg,
@@ -232,59 +223,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 40),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-                // Tarjetas de Estadísticas (Dashboard Style)
-                Row(
-                  children: [
-                    _StatCard(
-                      value: '${mascotas.length}',
-                      label: 'Mascotas',
-                      icon: Icons.pets_rounded,
-                      color: _teal,
-                      onTap: () => Navigator.pushNamed(context, '/mis_mascotas'),
-                    ),
-                    const SizedBox(width: 12),
-                    _StatCard(
-                      value: '${citaCtrl.citasDelUsuario.length}',
-                      label: 'Mis Citas',
-                      icon: Icons.calendar_today_rounded,
-                      color: _orange,
-                      onTap: () {
-                        final uid = user?.id;
-                        if (uid != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => HistorialCitasScreen(
-                                  modo: 'usuario', entityId: uid),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                    _StatCard(
-                      value: '$citasPendientes',
-                      label: 'Pendientes',
-                      icon: Icons.schedule_rounded,
-                      color: const Color(0xFF7C6FCD),
-                      onTap: () {
-                        final uid = user?.id;
-                        if (uid != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => HistorialCitasScreen(
-                                  modo: 'usuario', entityId: uid),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 28),
-
                 // Información personal
                 _SectionLabel(label: 'Información Personal'),
                 const SizedBox(height: 10),
@@ -323,80 +261,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       ),
                     ],
                   ],
-                ),
-
-                const SizedBox(height: 28),
-
-                // Mis mascotas
-                _SectionLabel(label: 'Mis Mascotas'),
-                const SizedBox(height: 10),
-                _InfoCard(
-                  headerAction: mascotas.isNotEmpty
-                      ? _HeaderAction(
-                          label: 'Ver todas',
-                          onTap: () => Navigator.pushNamed(context, '/mis_mascotas'),
-                        )
-                      : null,
-                  children: mascotas.isEmpty
-                      ? [
-                          _EmptyState(
-                            icon: Icons.pets_rounded,
-                            message: 'No tienes mascotas registradas aún.',
-                          ),
-                        ]
-                      : [
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            physics: const BouncingScrollPhysics(),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                            child: Row(
-                              children: mascotas.take(4).map((m) {
-                                return Container(
-                                  width: 140,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: _bg,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: _teal.withValues(alpha: 0.15)),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Container(
-                                        width: 50,
-                                        height: 50,
-                                        decoration: BoxDecoration(
-                                          color: m.color.withValues(alpha: 0.15),
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: Icon(m.icon, size: 24, color: m.color),
-                                      ),
-                                      const SizedBox(height: 10),
-                                      Text(
-                                        m.nombre,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: _dark,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      Text(
-                                        m.raza.isNotEmpty ? m.raza : m.especie,
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 10,
-                                          color: _grey,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ),
-                        ],
                 ),
 
                 const SizedBox(height: 28),

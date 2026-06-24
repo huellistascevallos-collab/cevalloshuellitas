@@ -25,14 +25,14 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   // ── Filtros ────────────────────────────────────────────────────────────────
   String? _filtroGenero;   // null = todos
   String? _filtroEspecie;  // null = todos
-  String? _filtroEdad;     // null = todos
+  String? _filtroAnio;     // null = todos
 
-  // Opciones dinámicas extraídas de las mascotas cargadas
+  // Opciones de filtro
   static const _generosOpciones  = ['Macho', 'Hembra'];
   static const _especiesOpciones = ['Perro', 'Gato', 'Ave', 'Conejo', 'Otro'];
-  static const _edadesOpciones   = [
-    'Cachorro (< 1 año)', 'Joven (1-3 años)',
-    'Adulto (3-7 años)', 'Senior (> 7 años)',
+  static const _aniosOpciones    = [
+    '< 1 año', '1 año', '2 años', '3 años', '4 años',
+    '5 años', '6 años', '7 años', '8+ años',
   ];
 
   @override
@@ -62,14 +62,19 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
           if (!esp.contains(filtro)) return false;
         }
       }
-      // Filtro edad
-      if (_filtroEdad != null) {
+      // Filtro año (edad)
+      if (_filtroAnio != null) {
         final anios = _extraerAnios(m.edad);
-        switch (_filtroEdad) {
-          case 'Cachorro (< 1 año)':  if (anios >= 1) return false;
-          case 'Joven (1-3 años)':    if (anios < 1 || anios > 3) return false;
-          case 'Adulto (3-7 años)':   if (anios <= 3 || anios > 7) return false;
-          case 'Senior (> 7 años)':   if (anios <= 7) return false;
+        switch (_filtroAnio) {
+          case '< 1 año':  if (anios >= 1) return false;
+          case '1 año':    if (anios.round() != 1) return false;
+          case '2 años':   if (anios.round() != 2) return false;
+          case '3 años':   if (anios.round() != 3) return false;
+          case '4 años':   if (anios.round() != 4) return false;
+          case '5 años':   if (anios.round() != 5) return false;
+          case '6 años':   if (anios.round() != 6) return false;
+          case '7 años':   if (anios.round() != 7) return false;
+          case '8+ años':  if (anios < 8) return false;
         }
       }
       return true;
@@ -86,12 +91,12 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
   }
 
   bool get _hayFiltros =>
-      _filtroGenero != null || _filtroEspecie != null || _filtroEdad != null;
+      _filtroGenero != null || _filtroEspecie != null || _filtroAnio != null;
 
   void _limpiarFiltros() => setState(() {
         _filtroGenero = null;
         _filtroEspecie = null;
-        _filtroEdad = null;
+        _filtroAnio = null;
       });
 
   void _showPerfilDialog(BuildContext context, MascotaModel mascota) {
@@ -454,10 +459,10 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                     Expanded(
                       child: _FiltroDropdown(
                         icono: Icons.cake_rounded,
-                        etiqueta: 'Edad',
-                        valor: _filtroEdad,
-                        opciones: _edadesOpciones,
-                        onChanged: (v) => setState(() => _filtroEdad = v),
+                        etiqueta: 'Año',
+                        valor: _filtroAnio,
+                        opciones: _aniosOpciones,
+                        onChanged: (v) => setState(() => _filtroAnio = v),
                       ),
                     ),
                   ]),
@@ -478,11 +483,11 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                               label: _filtroEspecie!,
                               onRemove: () =>
                                   setState(() => _filtroEspecie = null)),
-                        if (_filtroEdad != null)
+                        if (_filtroAnio != null)
                           _FiltroChipActivo(
-                              label: _filtroEdad!,
+                              label: _filtroAnio!,
                               onRemove: () =>
-                                  setState(() => _filtroEdad = null)),
+                                  setState(() => _filtroAnio = null)),
                       ],
                     ),
                   ],
