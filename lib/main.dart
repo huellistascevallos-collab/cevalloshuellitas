@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_config.dart';
+import 'data/services/notificacion_local_service.dart';
 import 'domain/controllers/auth_controller.dart';
 import 'domain/controllers/mascota_controller.dart';
 import 'domain/controllers/cita_controller.dart';
@@ -33,6 +34,9 @@ void main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
+
+  // Inicializar servicio de notificaciones locales (fuera de la app)
+  await NotificacionLocalService.instance.init();
 
   runApp(
     MultiProvider(

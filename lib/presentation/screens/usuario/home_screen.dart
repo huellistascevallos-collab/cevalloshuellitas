@@ -6,8 +6,11 @@ import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/solicitud_adopcion_controller.dart';
-import '../../../data/models/cita_model.dart';
 import '../../../data/models/mascota_model.dart';
+import '../../../presentation/widgets/notificaciones_sheet.dart';
+
+// Constante de color naranja para adopciones
+const _adoptOrange = Color(0xFFE58D57);
 
 // ─── Paleta de colores exacta de la imagen ────────────────────────────────────
 const _teal = Color(0xFF2FA3A3);       // Botones de categoría, "Ver Perfil" y FAB
@@ -31,203 +34,44 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       context.read<MascotaController>().cargarMascotasAdopcion();
       final uid = context.read<AuthController>().currentUser?.id;
       if (uid != null) {
         context.read<SolicitudAdopcionController>().suscribirNotificaciones(uid);
+        final citaCtrl = context.read<CitaController>();
         // Suscribir notificaciones realtime de citas para el usuario
-        context.read<CitaController>().suscribirNotificaciones(
-              entityId: uid,
-              rol: 'usuario',
-            );
+        citaCtrl.suscribirNotificaciones(entityId: uid, rol: 'usuario');
+        // Cargar citas y programar recordatorios para confirmadas existentes
+        await citaCtrl.cargarCitasDeUsuario(uid);
+        citaCtrl.programarRecordatoriosExistentes(
+            citaCtrl.citasDelUsuario, 'usuario');
       }
     });
   }
 
-  // ── Panel de notificaciones de citas ─────────────────────────────────────
+  // ── Panel de notificaciones unificadas ───────────────────────────────────
   void _showNotificacionesCitasSheet(BuildContext ctx, CitaController citaCtrl) {
     showModalBottomSheet(
       context: ctx,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: citaCtrl,
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: citaCtrl),
+          ChangeNotifierProvider.value(
+              value: ctx.read<SolicitudAdopcionController>()),
+        ],
         child: DraggableScrollableSheet(
           initialChildSize: 0.55,
           maxChildSize: 0.9,
           minChildSize: 0.35,
-          builder: (_, sc) => Container(
-            decoration: const BoxDecoration(
-              color: _white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(children: [
-              const SizedBox(height: 12),
-              Center(child: Container(width: 40, height: 4,
-                  decoration: BoxDecoration(color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2)))),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                        color: const Color(0xFFE3F2FD),
-                        borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.notifications_rounded,
-                        color: Color(0xFF1CB5C9), size: 20),
-                  ),
-                  const SizedBox(width: 12),
-                  Text('Notificaciones de Citas',
-                      style: GoogleFonts.poppins(fontSize: 18,
-                          fontWeight: FontWeight.w700, color: _dark)),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      citaCtrl.limpiarNotificaciones();
-                      Navigator.pop(ctx);
-                    },
-                    child: Text('Limpiar',
-                        style: GoogleFonts.poppins(
-                            fontSize: 12, color: Colors.grey)),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 8),
-              Expanded(
-                child: Consumer<CitaController>(
-                  builder: (_, ctrl, __) {
-                    final lista = ctrl.notificacionesCitas;
-                    if (lista.isEmpty) {
-                      return Center(child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                        Icon(Icons.notifications_none_rounded,
-                            size: 52, color: Colors.grey.shade300),
-                        const SizedBox(height: 10),
-                        Text('Sin notificaciones nuevas',
-                            style: GoogleFonts.poppins(
-                                fontSize: 14, color: Colors.grey.shade400)),
-                      ]));
-                    }
-                    return ListView.builder(
-                      controller: sc,
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                      itemCount: lista.length,
-                      itemBuilder: (_, i) =>
-                          _notifCitaCard(ctx, ctrl, lista[i]),
-                    );
-                  },
-                ),
-              ),
-            ]),
+          builder: (_, sc) => NotificacionesSheet(
+            sc: sc,
+            rol: 'usuario',
+            onClose: () => Navigator.pop(ctx),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _notifCitaCard(
-      BuildContext ctx, CitaController ctrl, CitaModel cita) {
-    final esConfirmada = cita.estado.toLowerCase() == 'confirmada';
-    final esRechazada = cita.estado.toLowerCase() == 'rechazada';
-    final color =
-        esConfirmada ? const Color(0xFF43B89C) : const Color(0xFFE53935);
-    final icon = esConfirmada
-        ? Icons.check_circle_rounded
-        : Icons.cancel_rounded;
-    final titulo = esConfirmada ? 'Cita confirmada' : 'Cita rechazada';
-
-    // Extraer motivo de rechazo si existe en la descripción
-    String? motivoRechazo;
-    if (esRechazada && cita.descripcion != null) {
-      motivoRechazo = cita.descripcion!
-          .replaceAll('Cita rechazada. Motivo:', '')
-          .trim();
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 1.2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-              Text(titulo,
-                  style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: color)),
-              const SizedBox(height: 4),
-              Text('Mascota: ${cita.mascotaNombre}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: _dark,
-                      fontWeight: FontWeight.w600)),
-              Text('Motivo: ${cita.motivo.replaceAll(RegExp(r'\[URGENCIA:\w+\]\s*'), '')}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12, color: Colors.grey.shade600)),
-              Text(
-                  '${cita.fecha.split('-').reversed.join('/')} a las ${cita.hora}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 11, color: Colors.grey.shade500)),
-              if (esRechazada && motivoRechazo != null &&
-                  motivoRechazo.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: const Color(0xFFE53935).withValues(alpha: 0.3)),
-                  ),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Row(children: [
-                      const Icon(Icons.info_outline_rounded,
-                          color: Color(0xFFE53935), size: 14),
-                      const SizedBox(width: 6),
-                      Text('Motivo del rechazo:',
-                          style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFB71C1C))),
-                    ]),
-                    const SizedBox(height: 4),
-                    Text(motivoRechazo,
-                        style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: const Color(0xFFB71C1C))),
-                  ]),
-                ),
-              ],
-            ]),
-          ),
-          GestureDetector(
-            onTap: () => ctrl.marcarNotificacionVista(cita.id),
-            child: Icon(Icons.close_rounded,
-                size: 18, color: Colors.grey.shade400),
-          ),
-        ]),
       ),
     );
   }
@@ -375,42 +219,76 @@ class _HomeScreenState extends State<HomeScreen> {
                                         ),
                                       ),
                                       const SizedBox(height: 6),
-                                      // Botón Ver Perfil
-                                      GestureDetector(
-                                        onTap: () {
-                                          Navigator.pop(sheetCtx);
-                                          _showPerfil(homeContext, m);
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            color: _teal.withValues(
-                                                alpha: 0.1),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                            border: Border.all(
-                                                color: _teal.withValues(
-                                                    alpha: 0.3)),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(Icons.visibility_outlined,
-                                                  color: _teal, size: 12),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                'Ver Perfil',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: _teal,
-                                                ),
+                                      // Botones: Ver Perfil + Adoptar
+                                      Row(children: [
+                                        // Ver Perfil
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              Navigator.pop(sheetCtx);
+                                              _showPerfil(homeContext, m);
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: _teal.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                    color: _teal.withValues(alpha: 0.3)),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.visibility_outlined,
+                                                      color: _teal, size: 11),
+                                                  const SizedBox(width: 3),
+                                                  Text('Perfil',
+                                                      style: GoogleFonts.poppins(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: _teal)),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: 6),
+                                        // Adoptar
+                                        Expanded(
+                                          child: GestureDetector(
+                                            onTap: () {
+                                              Navigator.pop(sheetCtx);
+                                              _confirmarAdopcion(homeContext, m);
+                                            },
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 5),
+                                              decoration: BoxDecoration(
+                                                color: _adoptOrange.withValues(alpha: 0.1),
+                                                borderRadius: BorderRadius.circular(20),
+                                                border: Border.all(
+                                                    color: _adoptOrange.withValues(alpha: 0.3)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.volunteer_activism_rounded,
+                                                      color: _adoptOrange, size: 11),
+                                                  const SizedBox(width: 3),
+                                                  Text('Adoptar',
+                                                      style: GoogleFonts.poppins(
+                                                          fontSize: 10,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: _adoptOrange)),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ]),
                                     ],
                                   ),
                                 ),
@@ -444,25 +322,134 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _infoChip(String label, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 5),
-        Text(
-          label,
-          style: GoogleFonts.poppins(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: color,
+  // ── Confirmar y enviar solicitud de adopción ──────────────────────────────
+  void _confirmarAdopcion(BuildContext context, MascotaModel mascota) {
+    final uid = context.read<AuthController>().currentUser?.id;
+    if (uid == null) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.volunteer_activism_rounded,
+              color: _adoptOrange, size: 22),
+          const SizedBox(width: 10),
+          Text('Adoptar a ${mascota.nombre}',
+              style: GoogleFonts.poppins(
+                  fontSize: 16, fontWeight: FontWeight.w700, color: _dark)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Foto + nombre
+          Row(children: [
+            Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                  color: const Color(0xFFF3F9FA),
+                  borderRadius: BorderRadius.circular(12)),
+              child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.network(mascota.fotoUrl!, fit: BoxFit.cover))
+                  : const Icon(Icons.pets_rounded, color: _teal, size: 26),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                Text(mascota.nombre,
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w700, fontSize: 14,
+                        color: _dark)),
+                Text('${mascota.especie} · ${mascota.raza}',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: Colors.grey.shade500)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _adoptOrange.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _adoptOrange.withValues(alpha: 0.2)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.info_outline_rounded,
+                  color: _adoptOrange, size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Se enviará una solicitud al dueño. Te notificaremos cuando responda.',
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: _adoptOrange, height: 1.4),
+                ),
+              ),
+            ]),
           ),
-        ),
-      ]),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancelar',
+                style: GoogleFonts.poppins(
+                    color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+          ),
+          Consumer<SolicitudAdopcionController>(
+            builder: (_, solicCtrl, w) => ElevatedButton.icon(
+              onPressed: solicCtrl.isLoading
+                  ? null
+                  : () async {
+                      final ok = await solicCtrl.enviarSolicitud(
+                          usuaId: uid, mascId: mascota.id);
+                      if (!context.mounted) return;
+                      Navigator.pop(ctx);
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Row(children: [
+                          Icon(
+                            ok
+                                ? Icons.check_circle_outline_rounded
+                                : Icons.error_outline_rounded,
+                            color: Colors.white, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              ok
+                                  ? '¡Solicitud enviada! El dueño te contactará pronto.'
+                                  : (solicCtrl.errorMessage ?? 'Error al enviar'),
+                              style: GoogleFonts.poppins(fontSize: 13),
+                            ),
+                          ),
+                        ]),
+                        backgroundColor: ok
+                            ? const Color(0xFF43B89C)
+                            : const Color(0xFFE53935),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 4),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ));
+                    },
+              icon: solicCtrl.isLoading
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.favorite_rounded, size: 16),
+              label: Text('Enviar Solicitud',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _adoptOrange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -576,14 +563,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                           size: 24,
                                         ),
                                         onPressed: () {
-                                          if (badgeCitas > 0) {
-                                            _showNotificacionesCitasSheet(
-                                                context, citaCtrl);
-                                          } else {
-                                            solicCtrl.limpiarNotificaciones();
-                                            Navigator.pushNamed(
-                                                context, '/solicitudes_adopcion');
-                                          }
+                                          // Siempre abre el nuevo panel de notificaciones
+                                          _showNotificacionesCitasSheet(context, citaCtrl);
                                         },
                                       ),
                                     ),
@@ -949,7 +930,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    mascota.nombre.toLowerCase(), // Mantiene el nombre en minúscula tal como en la imagen
+                    mascota.nombre.toLowerCase(),
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -958,26 +939,56 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  GestureDetector(
-                    onTap: () => _showPerfil(context, mascota),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      decoration: BoxDecoration(
-                        color: _teal,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Center(
-                        child: Text(
-                          'Ver Perfil',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                  Row(
+                    children: [
+                      // Ver Perfil
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _showPerfil(context, mascota),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _teal,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Perfil',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 6),
+                      // Adoptar
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => _confirmarAdopcion(context, mascota),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: _orange,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Center(
+                              child: Text(
+                                'Adoptar',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1268,23 +1279,61 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
                         ]),
                 ),
                 const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _teal,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
-                      padding: const EdgeInsets.symmetric(vertical: 13),
+                // ── Botones: Adoptar + Cerrar ──────────────────────────
+                Row(children: [
+                  // Botón Adoptar
+                  Expanded(
+                    child: Consumer<SolicitudAdopcionController>(
+                      builder: (ctx, solicCtrl, _) => ElevatedButton.icon(
+                        onPressed: solicCtrl.isLoading
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                                // Obtener uid del usuario actual
+                                final uid = ctx
+                                    .read<AuthController>()
+                                    .currentUser
+                                    ?.id;
+                                if (uid == null) return;
+                                // Reusar el diálogo de confirmación del HomeScreen
+                                // buscando el ancestro correcto del context
+                                _mostrarDialogoAdopcion(ctx, mascota, uid);
+                              },
+                        icon: const Icon(Icons.volunteer_activism_rounded,
+                            size: 16),
+                        label: Text('Adoptar',
+                            style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _orange,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                        ),
+                      ),
                     ),
-                    child: Text('Cerrar',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600, fontSize: 15)),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  // Botón Cerrar
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _teal,
+                        side: BorderSide(
+                            color: _teal.withValues(alpha: 0.4), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                      ),
+                      child: Text('Cerrar',
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600, fontSize: 14)),
+                    ),
+                  ),
+                ]),
               ]),
             ),
           ),
@@ -1307,6 +1356,95 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
             style: GoogleFonts.poppins(
                 fontSize: 12, fontWeight: FontWeight.w600, color: color)),
       ]),
+    );
+  }
+
+  void _mostrarDialogoAdopcion(
+      BuildContext ctx, MascotaModel mascota, String uid) {
+    showDialog(
+      context: ctx,
+      builder: (dCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.volunteer_activism_rounded,
+              color: _orange, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text('Adoptar a ${mascota.nombre}',
+                style: GoogleFonts.poppins(
+                    fontSize: 15, fontWeight: FontWeight.w700, color: _dark)),
+          ),
+        ]),
+        content: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: _orange.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: _orange.withValues(alpha: 0.2)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.info_outline_rounded,
+                color: _orange, size: 16),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Se enviará una solicitud al dueño. Te notificaremos cuando responda.',
+                style: GoogleFonts.poppins(
+                    fontSize: 11, color: _orange, height: 1.4),
+              ),
+            ),
+          ]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx),
+            child: Text('Cancelar',
+                style: GoogleFonts.poppins(
+                    color: Colors.grey.shade500, fontWeight: FontWeight.w600)),
+          ),
+          Consumer<SolicitudAdopcionController>(
+            builder: (_, solicCtrl, w) => ElevatedButton.icon(
+              onPressed: solicCtrl.isLoading
+                  ? null
+                  : () async {
+                      final ok = await solicCtrl.enviarSolicitud(
+                          usuaId: uid, mascId: mascota.id);
+                      if (!ctx.mounted) return;
+                      Navigator.pop(dCtx);
+                      ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                        content: Text(
+                          ok
+                              ? '¡Solicitud enviada! El dueño te contactará pronto.'
+                              : (solicCtrl.errorMessage ?? 'Error al enviar'),
+                          style: GoogleFonts.poppins(fontSize: 13),
+                        ),
+                        backgroundColor: ok
+                            ? const Color(0xFF43B89C)
+                            : const Color(0xFFE53935),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ));
+                    },
+              icon: solicCtrl.isLoading
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.favorite_rounded, size: 16),
+              label: Text('Confirmar',
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _orange,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

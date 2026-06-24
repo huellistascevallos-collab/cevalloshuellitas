@@ -27,10 +27,11 @@ class MascotaService {
   }
 
   /// Obtiene todas las mascotas que están en estado "para adoptar" en la plataforma.
+  /// Incluye join con usuarios para mostrar nombre y teléfono del propietario.
   Future<List<MascotaModel>> obtenerMascotasParaAdopcion() async {
     final response = await _client
         .from('mascotas')
-        .select()
+        .select('*, usuarios(usua_nombre, usua_telefono)')
         .eq('masc_estado', 'para adoptar');
 
     return (response as List<dynamic>)

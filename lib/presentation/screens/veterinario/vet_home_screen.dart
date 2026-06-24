@@ -5,8 +5,9 @@ import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/veterinario_controller.dart';
+import '../../../domain/controllers/solicitud_adopcion_controller.dart';
+import '../../../presentation/widgets/notificaciones_sheet.dart';
 import 'detalle_cita_screen.dart';
-
 // ─── Paleta verde veterinario ─────────────────────────────────────────────────
 const _vetGreen = Color(0xFF4A9B7F);       // Acento principal verde
 const _vetHeaderBg = Color(0xFFBAD1C2);    // Fondo de cabecera verde pastel
@@ -45,9 +46,12 @@ class _VetHomeScreenState extends State<VetHomeScreen>
         await vetCtrl.cargarPerfil(uid);
         final veteId = vetCtrl.perfil?.id;
         if (veteId != null && veteId.isNotEmpty) {
-          citaCtrl.cargarCitasDeVeterinario(veteId);
+          await citaCtrl.cargarCitasDeVeterinario(veteId);
           // Suscribir a notificaciones realtime de citas para veterinario
           citaCtrl.suscribirNotificaciones(entityId: veteId, rol: 'veterinario');
+          // Programar recordatorios para citas confirmadas existentes
+          citaCtrl.programarRecordatoriosExistentes(
+              citaCtrl.citasDelVeterinario, 'veterinario');
         }
       }
     });
@@ -368,61 +372,6 @@ class _VetHomeScreenState extends State<VetHomeScreen>
     );
   }
 
-  Widget _statCard(String value, String label, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.12),
-              blurRadius: 8, offset: const Offset(0, 3)),
-          ],
-        ),
-        child: Column(children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 6),
-          Text(value,
-              style: GoogleFonts.poppins(
-                  fontSize: 20, fontWeight: FontWeight.w800, color: _vetDark)),
-          Text(label,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                  fontSize: 10, color: _vetGrey, height: 1.2)),
-        ]),
-      ),
-    );
-  }
-
-
-
-
-  Widget _sectionHeader(String title, IconData icon, {VoidCallback? onTap}) {
-    return Row(children: [
-      Icon(icon, color: _vetGreen, size: 20),
-      const SizedBox(width: 8),
-      Text(title,
-          style: GoogleFonts.poppins(
-              fontSize: 16, fontWeight: FontWeight.w700, color: _vetDark)),
-      const Spacer(),
-      GestureDetector(
-        onTap: onTap,
-        child: Text('Ver todos',
-            style: GoogleFonts.poppins(
-                fontSize: 12, fontWeight: FontWeight.w600, color: _vetGreen)),
-      ),
-    ]);
-  }
-
   Widget _citaCardClickable(BuildContext context, dynamic cita) {
     Color color;
     IconData icon;
@@ -440,17 +389,19 @@ class _VetHomeScreenState extends State<VetHomeScreen>
         icon = Icons.schedule_rounded;
     }
     return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => DetalleCitaScreen(cita: cita),
-        ),
-      ).then((_) {
-        final veteId = context.read<VeterinarioController>().perfil?.id;
-        if (veteId != null) {
-          context.read<CitaController>().cargarCitasDeVeterinario(veteId);
-        }
-      }),
+      onTap: () {
+        final veteCtrl = context.read<VeterinarioController>();
+        final citaCtrl = context.read<CitaController>();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DetalleCitaScreen(cita: cita)),
+        ).then((_) {
+          final veteId = veteCtrl.perfil?.id;
+          if (veteId != null) {
+            citaCtrl.cargarCitasDeVeterinario(veteId);
+          }
+        });
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
@@ -507,63 +458,6 @@ class _VetHomeScreenState extends State<VetHomeScreen>
           ]),
         ]),
       ),
-    );
-  }
-
-  Widget _pacienteCard(dynamic mascota) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 3))
-        ],
-      ),
-      child: Row(children: [
-        Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(
-            color: mascota.color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
-              ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.network(mascota.fotoUrl!, fit: BoxFit.cover))
-              : Icon(mascota.icon, size: 26, color: mascota.color),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(mascota.nombre,
-                style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A1A2E))),
-            Text('${mascota.especie} · ${mascota.raza} · ${mascota.edad}',
-                style: GoogleFonts.poppins(
-                    fontSize: 11, color: Colors.grey.shade500)),
-          ]),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: mascota.color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(mascota.especie,
-              style: GoogleFonts.poppins(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: mascota.color)),
-        ),
-      ]),
     );
   }
 
@@ -634,195 +528,24 @@ class _VetHomeScreenState extends State<VetHomeScreen>
   }
 
   void _mostrarNotificacionesSheet(BuildContext context) {
-    final citaCtrl = context.read<CitaController>();
-    citaCtrl.limpiarNotificaciones();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: citaCtrl,
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: context.read<CitaController>()),
+          ChangeNotifierProvider.value(
+              value: context.read<SolicitudAdopcionController>()),
+        ],
         child: DraggableScrollableSheet(
           initialChildSize: 0.55,
           maxChildSize: 0.9,
           minChildSize: 0.3,
-          builder: (_, sc) => Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Consumer<CitaController>(
-              builder: (ctx, ctrl, _) {
-                final pendientes = ctrl.citasDelVeterinario
-                    .where((c) => c.estado.toLowerCase() == 'pendiente')
-                    .toList();
-                return Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Container(
-                        width: 40, height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: _vetOrange.withValues(alpha: 0.12),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.notifications_active_rounded,
-                                color: _vetOrange, size: 22),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Solicitudes de Cita Pendientes',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 16, fontWeight: FontWeight.w700,
-                                  color: _vetDark),
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: _vetOrange.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text('${pendientes.length}',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: _vetOrange)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: pendientes.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.check_circle_outline_rounded,
-                                      size: 56,
-                                      color: Colors.grey.shade300),
-                                  const SizedBox(height: 12),
-                                  Text('Sin solicitudes pendientes',
-                                      style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          color: Colors.grey.shade400)),
-                                ],
-                              ),
-                            )
-                          : ListView.separated(
-                              controller: sc,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              itemCount: pendientes.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 10),
-                              itemBuilder: (ctx2, i) {
-                                final cita = pendientes[i];
-                                return GestureDetector(
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            DetalleCitaScreen(cita: cita),
-                                      ),
-                                    );
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFFF8F3),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                          color: _vetOrange.withValues(
-                                              alpha: 0.25),
-                                          width: 1.2),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                          width: 46, height: 46,
-                                          decoration: BoxDecoration(
-                                            color: _vetOrange.withValues(
-                                                alpha: 0.12),
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: const Icon(Icons.pets_rounded,
-                                              color: _vetOrange, size: 22),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                cita.mascotaNombre.isNotEmpty
-                                                    ? cita.mascotaNombre
-                                                    : 'Mascota',
-                                                style: GoogleFonts.poppins(
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: _vetDark),
-                                              ),
-                                              const SizedBox(height: 2),
-                                              Text(
-                                                'Propietario: ${cita.propietarioNombre.isNotEmpty ? cita.propietarioNombre : "—"}',
-                                                style: GoogleFonts.poppins(
-                                                    fontSize: 12,
-                                                    color: Colors.grey.shade600),
-                                              ),
-                                              Text(
-                                                '${cita.fecha}  •  ${cita.hora}',
-                                                style: GoogleFonts.poppins(
-                                                    fontSize: 12,
-                                                    color: _vetOrange,
-                                                    fontWeight: FontWeight.w600),
-                                              ),
-                                              if (cita.motivo.isNotEmpty)
-                                                Text(
-                                                  cita.motivo,
-                                                  style: GoogleFonts.poppins(
-                                                      fontSize: 11,
-                                                      color: Colors.grey
-                                                          .shade500),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                        const Icon(Icons.arrow_forward_ios_rounded,
-                                            size: 14, color: Color(0xFF8A9BB0)),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                    ),
-                  ],
-                );
-              },
-            ),
+          builder: (_, sc) => NotificacionesSheet(
+            sc: sc,
+            rol: 'veterinario',
+            onClose: () => Navigator.pop(context),
           ),
         ),
       ),

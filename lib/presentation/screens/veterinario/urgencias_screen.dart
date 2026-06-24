@@ -15,7 +15,6 @@ class UrgenciasScreen extends StatefulWidget {
 }
 
 class _UrgenciasScreenState extends State<UrgenciasScreen> {
-  String _filtroPrioridad = 'Todos';
   bool _cargando = true;
 
   @override
@@ -37,23 +36,16 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
     });
   }
 
-  /// Filtra solo citas que son urgencias (motivo empieza con [URGENCIA])
-  /// y que están activas (pendiente, confirmada, en atención)
+  /// Filtra solo urgencias críticas activas
   List<CitaModel> get _urgencias {
     final ctrl = context.read<CitaController>();
-    final activas = ctrl.citasDelVeterinario.where((c) {
+    return ctrl.citasDelVeterinario.where((c) {
       final estado = c.estado.toLowerCase();
       final esUrgencia = c.motivo.startsWith('[URGENCIA:');
       final estaActiva = estado == 'pendiente' ||
           estado == 'confirmada' ||
           estado == 'en atención';
       return esUrgencia && estaActiva;
-    }).toList();
-
-    if (_filtroPrioridad == 'Todos') return activas;
-    return activas.where((c) {
-      final prioridad = _extraerPrioridad(c.motivo);
-      return prioridad.toLowerCase() == _filtroPrioridad.toLowerCase();
     }).toList();
   }
 
@@ -143,35 +135,24 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                   ),
                 ]),
               ),
-              // Filtros
-              SizedBox(
-                height: 38,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: ['Todos', 'Crítica', 'Alta', 'Media'].map((f) {
-                    final activo = _filtroPrioridad == f;
-                    return GestureDetector(
-                      onTap: () => setState(() => _filtroPrioridad = f),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.only(right: 10),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: activo
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(f,
-                            style: GoogleFonts.poppins(
-                                fontSize: 12, fontWeight: FontWeight.w600,
-                                color: activo
-                                    ? const Color(0xFFE53935) : Colors.white)),
-                      ),
-                    );
-                  }).toList(),
+              // Indicador de prioridad única: Crítica
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 8, height: 8,
+                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+                    const SizedBox(width: 7),
+                    Text('Solo urgencias CRÍTICAS',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, fontWeight: FontWeight.w600,
+                            color: Colors.white)),
+                  ]),
                 ),
               ),
               const SizedBox(height: 16),
@@ -313,6 +294,27 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                   style: GoogleFonts.poppins(
                       fontSize: 13, color: const Color(0xFF2D2D2D))),
             ),
+            // Dirección de domicilio (si aplica)
+            if (cita.direccion != null && cita.direccion!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                    color: const Color(0xFF1CB5C9).withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF1CB5C9).withValues(alpha: 0.2))),
+                child: Row(children: [
+                  const Icon(Icons.home_rounded, color: Color(0xFF1CB5C9), size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('Domicilio: ${cita.direccion}',
+                      style: GoogleFonts.poppins(
+                          fontSize: 11, color: const Color(0xFF126E82),
+                          fontWeight: FontWeight.w500),
+                      maxLines: 2, overflow: TextOverflow.ellipsis)),
+                ]),
+              ),
+            ],
             const SizedBox(height: 12),
             // Botón atender
             SizedBox(

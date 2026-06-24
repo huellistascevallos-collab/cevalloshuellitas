@@ -17,6 +17,8 @@ class SolicitudAdopcionModel {
   // Campos adicionales del join con usuarios (solicitante)
   final String? usuarioNombre;
   final String? usuarioCorreo;
+  final String? usuarioTelefono;
+  final String? usuarioFotoUrl;
 
   SolicitudAdopcionModel({
     required this.id,
@@ -31,6 +33,8 @@ class SolicitudAdopcionModel {
     this.duenioMascotaId,
     this.usuarioNombre,
     this.usuarioCorreo,
+    this.usuarioTelefono,
+    this.usuarioFotoUrl,
   });
 
   factory SolicitudAdopcionModel.fromJson(Map<String, dynamic> json) {
@@ -52,6 +56,8 @@ class SolicitudAdopcionModel {
       duenioMascotaId: mascota?['usua_id']?.toString(),
       usuarioNombre: usuario?['usua_nombre'] as String?,
       usuarioCorreo: usuario?['usua_correo'] as String?,
+      usuarioTelefono: usuario?['usua_telefono'] as String?,
+      usuarioFotoUrl: usuario?['usua_foto_url'] as String?,
     );
   }
 
@@ -77,6 +83,8 @@ class SolicitudAdopcionModel {
       duenioMascotaId: duenioMascotaId,
       usuarioNombre: usuarioNombre,
       usuarioCorreo: usuarioCorreo,
+      usuarioTelefono: usuarioTelefono,
+      usuarioFotoUrl: usuarioFotoUrl,
     );
   }
 }

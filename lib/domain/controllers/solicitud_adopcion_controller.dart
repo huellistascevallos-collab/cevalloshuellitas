@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../data/models/solicitud_adopcion_model.dart';
 import '../../data/services/solicitud_adopcion_service.dart';
+import '../../data/services/notificacion_local_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SolicitudAdopcionController extends ChangeNotifier {
@@ -58,7 +59,7 @@ class SolicitudAdopcionController extends ChangeNotifier {
               final solicitudCompleta = await Supabase.instance.client
                   .from('solicitudes_adopcion')
                   .select(
-                      '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), usuarios(usua_nombre, usua_correo)')
+                      '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)')
                   .eq('soli_id', nueva['soli_id'].toString())
                   .single();
 
@@ -69,6 +70,23 @@ class SolicitudAdopcionController extends ChangeNotifier {
               if (!_solicitudesRecibidas.any((s) => s.id == model.id)) {
                 _solicitudesRecibidas.insert(0, model);
               }
+
+              // ── Notificación push + feedback in-app ──────────────────────
+              final mascNombre = model.mascotaNombre ?? 'tu mascota';
+              final solicitanteNom = model.usuarioNombre ?? 'Alguien';
+              final notifId = NotificacionLocalService.idDesde('adopcion_${model.id}');
+
+              // Vibración in-app
+              NotificacionLocalService.instance.feedbackInApp(urgente: false);
+
+              // Push del sistema
+              NotificacionLocalService.instance.mostrarInmediata(
+                id: notifId,
+                titulo: '🐾 Nueva solicitud de adopción',
+                cuerpo: '$solicitanteNom quiere adoptar a $mascNombre.',
+                urgente: false,
+                subtext: mascNombre,
+              );
 
               notifyListeners();
             } catch (e) {

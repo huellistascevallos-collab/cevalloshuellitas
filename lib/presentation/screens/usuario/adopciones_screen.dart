@@ -22,8 +22,18 @@ class AdopcionesScreen extends StatefulWidget {
 }
 
 class _AdopcionesScreenState extends State<AdopcionesScreen> {
-  String _filtroEspecie = 'Todos';
-  final List<String> _filtros = ['Todos', 'Perros', 'Gatos', 'Aves', 'Conejos', 'Otros'];
+  // ── Filtros ────────────────────────────────────────────────────────────────
+  String? _filtroGenero;   // null = todos
+  String? _filtroEspecie;  // null = todos
+  String? _filtroEdad;     // null = todos
+
+  // Opciones dinámicas extraídas de las mascotas cargadas
+  static const _generosOpciones  = ['Macho', 'Hembra'];
+  static const _especiesOpciones = ['Perro', 'Gato', 'Ave', 'Conejo', 'Otro'];
+  static const _edadesOpciones   = [
+    'Cachorro (< 1 año)', 'Joven (1-3 años)',
+    'Adulto (3-7 años)', 'Senior (> 7 años)',
+  ];
 
   @override
   void initState() {
@@ -35,17 +45,54 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
 
   List<MascotaModel> _obtenerMascotasFiltradas(List<MascotaModel> todas) {
     return todas.where((m) {
-      if (_filtroEspecie == 'Todos') return true;
-      if (_filtroEspecie == 'Perros') return m.especie.toLowerCase().contains('perro');
-      if (_filtroEspecie == 'Gatos') return m.especie.toLowerCase().contains('gato');
-      if (_filtroEspecie == 'Aves') return m.especie.toLowerCase().contains('ave');
-      if (_filtroEspecie == 'Conejos') return m.especie.toLowerCase().contains('conejo');
-      return !m.especie.toLowerCase().contains('perro') &&
-             !m.especie.toLowerCase().contains('gato') &&
-             !m.especie.toLowerCase().contains('ave') &&
-             !m.especie.toLowerCase().contains('conejo');
+      // Filtro género
+      if (_filtroGenero != null) {
+        if (!m.genero.toLowerCase().contains(_filtroGenero!.toLowerCase())) {
+          return false;
+        }
+      }
+      // Filtro especie
+      if (_filtroEspecie != null) {
+        final esp = m.especie.toLowerCase();
+        final filtro = _filtroEspecie!.toLowerCase();
+        if (filtro == 'otro') {
+          final conocidas = ['perro', 'gato', 'ave', 'conejo'];
+          if (conocidas.any((c) => esp.contains(c))) return false;
+        } else {
+          if (!esp.contains(filtro)) return false;
+        }
+      }
+      // Filtro edad
+      if (_filtroEdad != null) {
+        final anios = _extraerAnios(m.edad);
+        switch (_filtroEdad) {
+          case 'Cachorro (< 1 año)':  if (anios >= 1) return false;
+          case 'Joven (1-3 años)':    if (anios < 1 || anios > 3) return false;
+          case 'Adulto (3-7 años)':   if (anios <= 3 || anios > 7) return false;
+          case 'Senior (> 7 años)':   if (anios <= 7) return false;
+        }
+      }
+      return true;
     }).toList();
   }
+
+  /// Extrae el número de años de strings como "2 años", "6 meses", "1 año"
+  double _extraerAnios(String edad) {
+    final lower = edad.toLowerCase();
+    final num = double.tryParse(
+        RegExp(r'(\d+(\.\d+)?)').firstMatch(lower)?.group(1) ?? '') ?? 0;
+    if (lower.contains('mes')) return num / 12;
+    return num;
+  }
+
+  bool get _hayFiltros =>
+      _filtroGenero != null || _filtroEspecie != null || _filtroEdad != null;
+
+  void _limpiarFiltros() => setState(() {
+        _filtroGenero = null;
+        _filtroEspecie = null;
+        _filtroEdad = null;
+      });
 
   void _showPerfilDialog(BuildContext context, MascotaModel mascota) {
     final uid = context.read<AuthController>().currentUser?.id;
@@ -137,6 +184,63 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
+                  // ── Datos del propietario ────────────────────────────────
+                  if (mascota.propietarioNombre != null ||
+                      mascota.propietarioTelefono != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: _orange.withValues(alpha: 0.07),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: _orange.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            const Icon(Icons.person_outline_rounded,
+                                color: _orange, size: 15),
+                            const SizedBox(width: 6),
+                            Text('Propietario',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: _orange)),
+                          ]),
+                          const SizedBox(height: 6),
+                          if (mascota.propietarioNombre != null)
+                            Row(children: [
+                              const Icon(Icons.badge_outlined,
+                                  size: 13, color: _grey),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(mascota.propietarioNombre!,
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: _dark)),
+                              ),
+                            ]),
+                          if (mascota.propietarioTelefono != null &&
+                              mascota.propietarioTelefono!.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Row(children: [
+                              const Icon(Icons.phone_outlined,
+                                  size: 13, color: _grey),
+                              const SizedBox(width: 6),
+                              Text(mascota.propietarioTelefono!,
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: _dark)),
+                            ]),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 18),
                   Row(
                     children: [
@@ -279,50 +383,119 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
             ),
           ),
 
-          // ── Filtros horizontales ──
+          // ── Filtros por Género · Especie · Edad ──────────────────────
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: SizedBox(
-                height: 38,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: _filtros.length,
-                  itemBuilder: (context, i) {
-                    final activo = _filtroEspecie == _filtros[i];
-                    return GestureDetector(
-                      onTap: () => setState(() => _filtroEspecie = _filtros[i]),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: activo ? _teal : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: _teal.withValues(alpha: activo ? 0.2 : 0.04),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Center(
-                          child: Text(
-                            _filtros[i],
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: activo ? Colors.white : _dark,
-                            ),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Fila: etiqueta + botón limpiar
+                  Row(children: [
+                    const Icon(Icons.tune_rounded, size: 16, color: _teal),
+                    const SizedBox(width: 6),
+                    Text('Filtros',
+                        style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: _dark)),
+                    const Spacer(),
+                    if (_hayFiltros)
+                      GestureDetector(
+                        onTap: _limpiarFiltros,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE53935).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: const Color(0xFFE53935).withValues(alpha: 0.25)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.close_rounded,
+                                  size: 12, color: Color(0xFFE53935)),
+                              const SizedBox(width: 4),
+                              Text('Limpiar',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFFE53935))),
+                            ],
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                  ]),
+                  const SizedBox(height: 10),
+                  // Tres dropdowns en fila
+                  Row(children: [
+                    Expanded(
+                      child: _FiltroDropdown(
+                        icono: Icons.transgender_rounded,
+                        etiqueta: 'Género',
+                        valor: _filtroGenero,
+                        opciones: _generosOpciones,
+                        onChanged: (v) => setState(() => _filtroGenero = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _FiltroDropdown(
+                        icono: Icons.pets_rounded,
+                        etiqueta: 'Especie',
+                        valor: _filtroEspecie,
+                        opciones: _especiesOpciones,
+                        onChanged: (v) => setState(() => _filtroEspecie = v),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _FiltroDropdown(
+                        icono: Icons.cake_rounded,
+                        etiqueta: 'Edad',
+                        valor: _filtroEdad,
+                        opciones: _edadesOpciones,
+                        onChanged: (v) => setState(() => _filtroEdad = v),
+                      ),
+                    ),
+                  ]),
+                  // Chips de filtros activos
+                  if (_hayFiltros) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        if (_filtroGenero != null)
+                          _FiltroChipActivo(
+                              label: _filtroGenero!,
+                              onRemove: () =>
+                                  setState(() => _filtroGenero = null)),
+                        if (_filtroEspecie != null)
+                          _FiltroChipActivo(
+                              label: _filtroEspecie!,
+                              onRemove: () =>
+                                  setState(() => _filtroEspecie = null)),
+                        if (_filtroEdad != null)
+                          _FiltroChipActivo(
+                              label: _filtroEdad!,
+                              onRemove: () =>
+                                  setState(() => _filtroEdad = null)),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  // Contador de resultados
+                  Text(
+                    '${mascotasFiltradas.length} mascota${mascotasFiltradas.length != 1 ? "s" : ""} encontrada${mascotasFiltradas.length != 1 ? "s" : ""}',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        color: _grey,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ],
               ),
             ),
           ),
@@ -765,6 +938,163 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ── Dropdown de filtro ────────────────────────────────────────────────────────
+class _FiltroDropdown extends StatelessWidget {
+  final IconData icono;
+  final String etiqueta;
+  final String? valor;
+  final List<String> opciones;
+  final ValueChanged<String?> onChanged;
+
+  const _FiltroDropdown({
+    required this.icono, required this.etiqueta, required this.valor,
+    required this.opciones, required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activo = valor != null;
+    return GestureDetector(
+      onTap: () => _mostrarOpciones(context),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: activo ? const Color(0xFF2FA3A3) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: activo ? const Color(0xFF2FA3A3) : Colors.grey.shade200,
+            width: 1.2,
+          ),
+          boxShadow: [BoxShadow(
+            color: activo
+                ? const Color(0xFF2FA3A3).withValues(alpha: 0.18)
+                : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 6, offset: const Offset(0, 2),
+          )],
+        ),
+        child: Row(children: [
+          Icon(icono, size: 13,
+              color: activo ? Colors.white : const Color(0xFF8A9BB0)),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(valor ?? etiqueta,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                    fontSize: 10, fontWeight: FontWeight.w600,
+                    color: activo ? Colors.white : const Color(0xFF262A2B))),
+          ),
+          Icon(Icons.expand_more_rounded, size: 14,
+              color: activo ? Colors.white : const Color(0xFF8A9BB0)),
+        ]),
+      ),
+    );
+  }
+
+  void _mostrarOpciones(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Center(child: Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)))),
+          const SizedBox(height: 16),
+          Row(children: [
+            Icon(icono, color: const Color(0xFF2FA3A3), size: 18),
+            const SizedBox(width: 8),
+            Text(etiqueta, style: GoogleFonts.poppins(
+                fontSize: 15, fontWeight: FontWeight.w700,
+                color: const Color(0xFF262A2B))),
+          ]),
+          const SizedBox(height: 12),
+          _OpcionItem(label: 'Todos', seleccionado: valor == null,
+              onTap: () { Navigator.pop(context); onChanged(null); }),
+          ...opciones.map((op) => _OpcionItem(
+            label: op, seleccionado: valor == op,
+            onTap: () { Navigator.pop(context); onChanged(op); },
+          )),
+        ]),
+      ),
+    );
+  }
+}
+
+class _OpcionItem extends StatelessWidget {
+  final String label;
+  final bool seleccionado;
+  final VoidCallback onTap;
+  const _OpcionItem({required this.label, required this.seleccionado, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: BoxDecoration(
+          color: seleccionado
+              ? const Color(0xFF2FA3A3).withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: seleccionado
+                ? const Color(0xFF2FA3A3).withValues(alpha: 0.3)
+                : Colors.grey.shade100,
+          ),
+        ),
+        child: Row(children: [
+          Expanded(child: Text(label, style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: seleccionado ? FontWeight.w700 : FontWeight.w500,
+              color: seleccionado
+                  ? const Color(0xFF2FA3A3)
+                  : const Color(0xFF262A2B)))),
+          if (seleccionado)
+            const Icon(Icons.check_rounded, color: Color(0xFF2FA3A3), size: 18),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Chip de filtro activo ─────────────────────────────────────────────────────
+class _FiltroChipActivo extends StatelessWidget {
+  final String label;
+  final VoidCallback onRemove;
+  const _FiltroChipActivo({required this.label, required this.onRemove});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2FA3A3).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF2FA3A3).withValues(alpha: 0.3)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(label, style: GoogleFonts.poppins(
+            fontSize: 11, fontWeight: FontWeight.w600,
+            color: const Color(0xFF2FA3A3))),
+        const SizedBox(width: 4),
+        GestureDetector(
+          onTap: onRemove,
+          child: const Icon(Icons.close_rounded, size: 13, color: Color(0xFF2FA3A3)),
+        ),
+      ]),
     );
   }
 }
