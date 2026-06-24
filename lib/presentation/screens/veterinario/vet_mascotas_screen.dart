@@ -710,6 +710,7 @@ class _PerfilMascotaSheet extends StatefulWidget {
 
 class _PerfilMascotaSheetState extends State<_PerfilMascotaSheet> {
   String? _telefono;
+  String? _fotoDueno;
   bool _cargando = true;
 
   @override
@@ -727,13 +728,14 @@ class _PerfilMascotaSheetState extends State<_PerfilMascotaSheet> {
     try {
       final result = await Supabase.instance.client
           .from('usuarios')
-          .select('usua_telefono')
+          .select('usua_telefono, usua_foto_url')
           .eq('usua_id', usuarioId)
           .maybeSingle();
       if (mounted) {
         setState(() {
-          _telefono = result?['usua_telefono'] as String?;
-          _cargando = false;
+          _telefono   = result?['usua_telefono'] as String?;
+          _fotoDueno  = result?['usua_foto_url']  as String?;
+          _cargando   = false;
         });
       }
     } catch (_) {
@@ -828,54 +830,98 @@ class _PerfilMascotaSheetState extends State<_PerfilMascotaSheet> {
                           color: const Color(0xFF126E82))),
                 ]),
                 const SizedBox(height: 12),
-                // Nombre del propietario
-                if (propietario.isNotEmpty) ...[
-                  Row(children: [
-                    const Icon(Icons.badge_outlined,
-                        color: Color(0xFF1CB5C9), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(propietario,
-                          style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1A1A2E))),
-                    ),
-                  ]),
-                  const SizedBox(height: 8),
-                ],
-                // Teléfono del propietario
-                if (_cargando)
-                  Row(children: [
-                    const Icon(Icons.phone_outlined,
-                        color: Color(0xFF1CB5C9), size: 16),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: const Color(0xFF1CB5C9)),
-                    ),
-                  ])
-                else ...[
-                  Row(children: [
-                    const Icon(Icons.phone_outlined,
-                        color: Color(0xFF1CB5C9), size: 16),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        (_telefono?.isNotEmpty == true)
-                            ? _telefono!
-                            : 'Teléfono no registrado',
-                        style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: (_telefono?.isNotEmpty == true)
-                                ? const Color(0xFF1A1A2E)
-                                : Colors.grey.shade400),
+                // ── Foto + nombre del dueño ──────────────────────────────
+                if (!_cargando) ...[
+                  Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+                    // Avatar del dueño
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF1CB5C9).withValues(alpha: 0.15),
+                        border: Border.all(
+                            color: const Color(0xFF1CB5C9).withValues(alpha: 0.4),
+                            width: 2),
+                      ),
+                      child: ClipOval(
+                        child: (_fotoDueno != null && _fotoDueno!.isNotEmpty)
+                            ? Image.network(_fotoDueno!, fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => const Icon(
+                                    Icons.person_rounded,
+                                    size: 28,
+                                    color: Color(0xFF1CB5C9)))
+                            : const Icon(Icons.person_rounded,
+                                size: 28, color: Color(0xFF1CB5C9)),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    // Nombre + teléfono
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            const Icon(Icons.badge_outlined,
+                                color: Color(0xFF1CB5C9), size: 14),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                propietario.isNotEmpty
+                                    ? propietario
+                                    : 'No disponible',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF1A1A2E)),
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 4),
+                          Row(children: [
+                            const Icon(Icons.phone_outlined,
+                                color: Color(0xFF1CB5C9), size: 14),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                (_telefono?.isNotEmpty == true)
+                                    ? _telefono!
+                                    : 'Teléfono no registrado',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: (_telefono?.isNotEmpty == true)
+                                        ? const Color(0xFF1A1A2E)
+                                        : Colors.grey.shade400),
+                              ),
+                            ),
+                          ]),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ] else ...[
+                  // Cargando
+                  Row(children: [
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.grey.shade200,
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 20, height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: const Color(0xFF1CB5C9)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text('Cargando datos del propietario...',
+                        style: GoogleFonts.poppins(
+                            fontSize: 12, color: Colors.grey.shade400)),
                   ]),
                 ],
                 const SizedBox(height: 10),

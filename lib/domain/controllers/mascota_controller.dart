@@ -10,6 +10,7 @@ class MascotaController extends ChangeNotifier {
   List<MascotaModel> _mascotas = [];
   List<MascotaModel> _mascotasAdopcion = [];
   List<MascotaModel> _todasLasMascotas = [];
+  List<MascotaModel> _mascotasRecientes = [];
   final Set<String> _favoritos = {}; // IDs de mascotas favoritas
   bool _isLoading = false;
   bool _isLoadingAdopciones = false;
@@ -18,6 +19,7 @@ class MascotaController extends ChangeNotifier {
   List<MascotaModel> get mascotas => _mascotas;
   List<MascotaModel> get mascotasAdopcion => _mascotasAdopcion;
   List<MascotaModel> get todasLasMascotas => _todasLasMascotas;
+  List<MascotaModel> get mascotasRecientes => _mascotasRecientes;
   Set<String> get favoritos => _favoritos;
   List<MascotaModel> get mascotasFavoritas =>
       _mascotasAdopcion.where((m) => _favoritos.contains(m.id)).toList();
@@ -195,6 +197,17 @@ class MascotaController extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+  }
+
+  /// Carga las 5 mascotas más recientemente registradas.
+  Future<void> cargarMascotasRecientes({int limite = 5}) async {
+    try {
+      _mascotasRecientes =
+          await _mascotaService.obtenerMascotasRecientes(limite: limite);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error cargarMascotasRecientes: $e');
     }
   }
 }

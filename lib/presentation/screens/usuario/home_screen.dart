@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../domain/controllers/auth_controller.dart';
@@ -30,6 +32,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  // Referencia guardada para usar en dispose() sin acceder a context
+  SolicitudAdopcionController? _solicCtrl;
+
+  @override
+  void dispose() {
+    // Usar referencia guardada, nunca context en dispose
+    _solicCtrl?.detenerVigilancia();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -38,14 +49,20 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<MascotaController>().cargarMascotasAdopcion();
       final uid = context.read<AuthController>().currentUser?.id;
       if (uid != null) {
-        context.read<SolicitudAdopcionController>().suscribirNotificaciones(uid);
+        final solicCtrl = context.read<SolicitudAdopcionController>();
+        _solicCtrl = solicCtrl; // guardar referencia para dispose
+        // Inicia Realtime + polling de adopciones (carga + vigilancia activa)
+        await solicCtrl.iniciarVigilancia(uid);
+        // Cargar historial completo de solicitudes
+        solicCtrl.cargarMisSolicitudes(uid);
+        solicCtrl.cargarSolicitudesRecibidas(uid);
+
         final citaCtrl = context.read<CitaController>();
-        // Suscribir notificaciones realtime de citas para el usuario
         citaCtrl.suscribirNotificaciones(entityId: uid, rol: 'usuario');
-        // Cargar citas y programar recordatorios para confirmadas existentes
         await citaCtrl.cargarCitasDeUsuario(uid);
         citaCtrl.programarRecordatoriosExistentes(
             citaCtrl.citasDelUsuario, 'usuario');
+        citaCtrl.cargarNotificacionesExistentes(uid, 'usuario');
       }
     });
   }
@@ -314,6 +331,62 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Sheet Próximamente (Tienda) ───────────────────────────────────────────
+  void _showProximamenteSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: _teal.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.store_rounded, size: 48, color: _teal),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Tienda',
+              style: GoogleFonts.poppins(
+                  fontSize: 22, fontWeight: FontWeight.w800, color: _dark),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '¡Próximamente!',
+              style: GoogleFonts.poppins(
+                  fontSize: 16, fontWeight: FontWeight.w600, color: _teal),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Estamos preparando algo increíble para ti y tu mascota. ¡Pronto estará disponible!',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: _grey, height: 1.5),
+            ),
+            const SizedBox(height: 28),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ── Dialog perfil mascota ─────────────────────────────────────────────────
   void _showPerfil(BuildContext context, MascotaModel mascota) {
     showDialog(
@@ -453,6 +526,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Sheet para agregar una nueva mascota directamente desde el FAB ────────
+  void _showAddMascotaSheet(BuildContext context) {
+    final uid = context.read<AuthController>().currentUser?.id;
+    if (uid == null) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: context.read<MascotaController>()),
+          ChangeNotifierProvider.value(value: context.read<AuthController>()),
+        ],
+        child: _AddMascotaSheet(
+          onGuardado: () {
+            // Recargar la lista de mascotas del usuario tras guardar
+            context.read<MascotaController>().cargarMascotas(uid);
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ctrl = context.watch<MascotaController>();
@@ -485,7 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
             color: Colors.transparent,
             child: InkWell(
               customBorder: const CircleBorder(),
-              onTap: () => Navigator.pushNamed(context, '/mis_mascotas'),
+              onTap: () => _showAddMascotaSheet(context),
               child: const Icon(
                 Icons.pets_rounded,
                 color: Colors.white,
@@ -1016,8 +1112,8 @@ class _HomeScreenState extends State<HomeScreen> {
             _navBtn(Icons.map_outlined, 1,
                 onTap: () => Navigator.pushNamed(context, '/mapa_veterinarios')),
             const SizedBox(width: 48), // Espacio para el FAB central
-            _navBtn(Icons.favorite_border_rounded, 2,
-                onTap: () => _showFavoritosDialog(context)),
+            _navBtn(Icons.store_rounded, 2,
+                onTap: () => _showProximamenteSheet(context)),
             _navBtn(Icons.person_outline_rounded, 3,
                 onTap: () => Navigator.pushNamed(context, '/perfil')),
           ],
@@ -1081,6 +1177,7 @@ class _PerfilMascotaDialog extends StatefulWidget {
 class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
   String? _nombreDueno;
   String? _telefonoDueno;
+  String? _fotoDueno;
   bool _cargando = true;
 
   @override
@@ -1098,14 +1195,15 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
     try {
       final result = await Supabase.instance.client
           .from('usuarios')
-          .select('usua_nombre, usua_telefono')
+          .select('usua_nombre, usua_telefono, usua_foto_url')
           .eq('usua_id', usuarioId)
           .maybeSingle();
       if (mounted) {
         setState(() {
-          _nombreDueno = result?['usua_nombre'] as String?;
+          _nombreDueno  = result?['usua_nombre']    as String?;
           _telefonoDueno = result?['usua_telefono'] as String?;
-          _cargando = false;
+          _fotoDueno    = result?['usua_foto_url']  as String?;
+          _cargando     = false;
         });
       }
     } catch (_) {
@@ -1232,51 +1330,94 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                          Row(children: [
-                            const Icon(Icons.person_rounded,
-                                color: _teal, size: 16),
-                            const SizedBox(width: 6),
-                            Text('Datos del propietario',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: _teal)),
-                          ]),
-                          const SizedBox(height: 8),
-                          Row(children: [
-                            const Icon(Icons.badge_outlined,
-                                color: _teal, size: 14),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                  _nombreDueno?.isNotEmpty == true
-                                      ? _nombreDueno!
-                                      : 'No disponible',
+                            Row(children: [
+                              const Icon(Icons.person_rounded,
+                                  color: _teal, size: 16),
+                              const SizedBox(width: 6),
+                              Text('Datos del propietario',
                                   style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: _dark)),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: _teal)),
+                            ]),
+                            const SizedBox(height: 10),
+                            // ── Foto + info en fila ──────────────────────
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Avatar del dueño
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _teal.withValues(alpha: 0.12),
+                                    border: Border.all(
+                                        color: _teal.withValues(alpha: 0.35),
+                                        width: 2),
+                                  ),
+                                  child: ClipOval(
+                                    child: (_fotoDueno != null &&
+                                            _fotoDueno!.isNotEmpty)
+                                        ? Image.network(_fotoDueno!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) =>
+                                                const Icon(Icons.person_rounded,
+                                                    size: 26, color: _teal))
+                                        : const Icon(Icons.person_rounded,
+                                            size: 26, color: _teal),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                // Nombre + teléfono
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(children: [
+                                        const Icon(Icons.badge_outlined,
+                                            color: _teal, size: 13),
+                                        const SizedBox(width: 5),
+                                        Expanded(
+                                          child: Text(
+                                            _nombreDueno?.isNotEmpty == true
+                                                ? _nombreDueno!
+                                                : 'No disponible',
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: _dark),
+                                          ),
+                                        ),
+                                      ]),
+                                      const SizedBox(height: 4),
+                                      Row(children: [
+                                        const Icon(Icons.phone_outlined,
+                                            color: _teal, size: 13),
+                                        const SizedBox(width: 5),
+                                        Expanded(
+                                          child: Text(
+                                            (_telefonoDueno?.isNotEmpty ==
+                                                    true)
+                                                ? _telefonoDueno!
+                                                : 'Teléfono no registrado',
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                color: (_telefonoDueno
+                                                            ?.isNotEmpty ==
+                                                        true)
+                                                    ? _dark
+                                                    : Colors.grey.shade400),
+                                          ),
+                                        ),
+                                      ]),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ]),
-                          const SizedBox(height: 4),
-                          Row(children: [
-                            const Icon(Icons.phone_outlined,
-                                color: _teal, size: 14),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                (_telefonoDueno?.isNotEmpty == true)
-                                    ? _telefonoDueno!
-                                    : 'Teléfono no registrado',
-                                style: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: (_telefonoDueno?.isNotEmpty == true)
-                                        ? _dark
-                                        : Colors.grey.shade400),
-                              ),
-                            ),
-                          ]),
-                        ]),
                 ),
                 const SizedBox(height: 18),
                 // ── Botones: Adoptar + Cerrar ──────────────────────────
@@ -1444,6 +1585,307 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sheet inline: Agregar Mascota (usado desde el FAB del HomeScreen)
+// ─────────────────────────────────────────────────────────────────────────────
+class _AddMascotaSheet extends StatefulWidget {
+  final VoidCallback? onGuardado;
+  const _AddMascotaSheet({this.onGuardado});
+
+  @override
+  State<_AddMascotaSheet> createState() => _AddMascotaSheetState();
+}
+
+class _AddMascotaSheetState extends State<_AddMascotaSheet> {
+  final _nombreCtrl = TextEditingController();
+  final _razaCtrl = TextEditingController();
+  final _edadCtrl = TextEditingController();
+  final _descripcionCtrl = TextEditingController();
+  String _especie = 'Perro';
+  String _genero = 'Macho';
+  String _estado = 'propio';
+  File? _imagenFisica;
+  final _picker = ImagePicker();
+
+  @override
+  void dispose() {
+    _nombreCtrl.dispose();
+    _razaCtrl.dispose();
+    _edadCtrl.dispose();
+    _descripcionCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _seleccionarImagen() async {
+    final picked = await _picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      final ext = picked.path.split('.').last.toLowerCase();
+      if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Formato .$ext no permitido. Usa JPG, PNG o WEBP.'),
+            backgroundColor: Colors.redAccent,
+          ));
+        }
+        return;
+      }
+      setState(() => _imagenFisica = File(picked.path));
+    }
+  }
+
+  void _guardar() async {
+    final mascotaCtrl = context.read<MascotaController>();
+    final authCtrl = context.read<AuthController>();
+    final uid = authCtrl.currentUser?.id;
+    if (uid == null) return;
+
+    if (_nombreCtrl.text.trim().isEmpty ||
+        _razaCtrl.text.trim().isEmpty ||
+        _edadCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nombre, raza y edad son obligatorios.')),
+      );
+      return;
+    }
+
+    final edadVal = int.tryParse(_edadCtrl.text.trim());
+    if (edadVal == null || edadVal < 0 || edadVal > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La edad debe ser un número entre 0 y 100.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    String? fotoUrl;
+    if (_imagenFisica != null) {
+      final ext = _imagenFisica!.path.split('.').last.toLowerCase();
+      fotoUrl = await mascotaCtrl.subirImagenMascota(_imagenFisica!, ext);
+      if (!mounted) return;
+      if (fotoUrl == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(mascotaCtrl.errorMessage ?? 'Error al subir imagen'),
+          backgroundColor: Colors.redAccent,
+        ));
+        return;
+      }
+    }
+
+    final nueva = MascotaModel(
+      id: '',
+      usuarioId: uid,
+      nombre: _nombreCtrl.text.trim(),
+      especie: _especie,
+      raza: _razaCtrl.text.trim(),
+      genero: _genero,
+      edad: _edadCtrl.text.trim(),
+      estado: _estado,
+      descripcion: _estado == 'para adoptar'
+          ? _descripcionCtrl.text.trim()
+          : null,
+      fotoUrl: fotoUrl,
+    );
+
+    final ok = await mascotaCtrl.agregarMascota(nueva);
+
+    if (ok && mounted) {
+      widget.onGuardado?.call();
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('¡Mascota registrada exitosamente!'),
+        backgroundColor: _teal,
+      ));
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(mascotaCtrl.errorMessage ?? 'Error al guardar'),
+        backgroundColor: Colors.redAccent,
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = context.watch<MascotaController>();
+
+    return Container(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Añadir Mascota',
+                style: GoogleFonts.poppins(
+                  fontSize: 22, fontWeight: FontWeight.w700, color: _dark,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              _inputField('Nombre de la mascota', _nombreCtrl, Icons.pets_rounded),
+              const SizedBox(height: 14),
+              _dropdown('Especie', _especie,
+                  ['Perro', 'Gato', 'Conejo', 'Ave', 'Otro'],
+                  (v) => setState(() => _especie = v!)),
+              const SizedBox(height: 14),
+              _inputField('Raza', _razaCtrl, Icons.category_outlined),
+              const SizedBox(height: 14),
+              _inputField('Edad (ej. 3)', _edadCtrl, Icons.cake_outlined,
+                  keyboard: TextInputType.number),
+              const SizedBox(height: 14),
+              _dropdown('Género', _genero, ['Macho', 'Hembra'],
+                  (v) => setState(() => _genero = v!)),
+              const SizedBox(height: 14),
+              _dropdown('Estado', _estado,
+                  ['propio', 'para adoptar', 'adoptado'],
+                  (v) => setState(() => _estado = v!)),
+              const SizedBox(height: 14),
+
+              if (_estado == 'para adoptar') ...[
+                _inputField('Descripción para adopción', _descripcionCtrl,
+                    Icons.description_outlined),
+                const SizedBox(height: 14),
+              ],
+
+              // Foto
+              Text('Foto de la mascota',
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: Colors.grey.shade500)),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: _seleccionarImagen,
+                child: Container(
+                  height: 130, width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3FAFD),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: const Color(0xFFDCEEF0), width: 1.2),
+                  ),
+                  child: _imagenFisica != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: Image.file(_imagenFisica!, fit: BoxFit.cover))
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.add_photo_alternate_outlined,
+                                color: _teal, size: 34),
+                            const SizedBox(height: 8),
+                            Text('Toca para subir una imagen',
+                                style: GoogleFonts.poppins(
+                                    fontSize: 12, color: _teal)),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Botón guardar
+              SizedBox(
+                width: double.infinity, height: 52,
+                child: ElevatedButton(
+                  onPressed: ctrl.isLoading ? null : _guardar,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _teal,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: ctrl.isLoading
+                      ? const SizedBox(
+                          width: 24, height: 24,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : Text('Registrar Mascota',
+                          style: GoogleFonts.poppins(
+                              fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _inputField(String label, TextEditingController ctrl, IconData icon,
+      {TextInputType? keyboard}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      style: GoogleFonts.poppins(fontSize: 14, color: const Color(0xFF2D2D2D)),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle:
+            GoogleFonts.poppins(color: Colors.grey.shade500, fontSize: 13),
+        prefixIcon: Icon(icon, color: _teal, size: 20),
+        filled: true,
+        fillColor: const Color(0xFFF3FAFD),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide:
+                const BorderSide(color: Color(0xFFDCEEF0), width: 1.2)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: _teal, width: 2)),
+      ),
+    );
+  }
+
+  Widget _dropdown(String label, String value, List<String> items,
+      ValueChanged<String?> onChanged) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF3FAFD),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDCEEF0), width: 1.2),
+      ),
+      child: DropdownButtonFormField<String>(
+        value: value,
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          labelText: label,
+          labelStyle: GoogleFonts.poppins(
+              color: Colors.grey.shade500, fontSize: 13),
+        ),
+        style: GoogleFonts.poppins(
+            fontSize: 14, color: const Color(0xFF2D2D2D)),
+        dropdownColor: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        items: items
+            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+            .toList(),
+        onChanged: onChanged,
       ),
     );
   }

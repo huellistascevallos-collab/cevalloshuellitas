@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/models/solicitud_adopcion_model.dart';
 import '../../data/services/solicitud_adopcion_service.dart';
@@ -13,9 +14,14 @@ class SolicitudAdopcionController extends ChangeNotifier {
   String? _errorMessage;
 
   // ─── Notificaciones in-app ────────────────────────────────────────────────
+  /// IDs de solicitudes ya vistas (para no repetir push ni badge)
+  final Set<String> _idsSolicitusVistas = {};
   /// Solicitudes recibidas aún no vistas por el dueño.
   final List<SolicitudAdopcionModel> _notificacionesPendientes = [];
+
   RealtimeChannel? _realtimeChannel;
+  Timer? _pollingTimer;
+  String? _duenioIdActivo;
 
   List<SolicitudAdopcionModel> get misSolicitudes => _misSolicitudes;
   List<SolicitudAdopcionModel> get solicitudesRecibidas => _solicitudesRecibidas;
@@ -29,94 +35,230 @@ class SolicitudAdopcionController extends ChangeNotifier {
 
   int get totalNotificaciones => _notificacionesPendientes.length;
 
-  // ─── Realtime: escuchar nuevas solicitudes para las mascotas del dueño ───
+  // ─── Iniciar vigilancia: Realtime + Polling ───────────────────────────────
 
-  /// Suscribe al canal Realtime para recibir notificaciones cuando llegan
-  /// nuevas solicitudes dirigidas a las mascotas del [duenioId].
-  void suscribirNotificaciones(String duenioId) {
+  /// Arranca Realtime + polling periódico para el [duenioId].
+  /// Llama esto en el initState del HomeScreen.
+  Future<void> iniciarVigilancia(String duenioId) async {
+    _duenioIdActivo = duenioId;
+
+    // 1. Carga inicial (sin push, sin vibración)
+    await _sincronizarSolicitudesPendientes(duenioId, dispararPush: false);
+
+    // 2. Suscribir Realtime para INSERTs nuevos
+    _suscribirRealtime(duenioId);
+
+    // 3. Polling de respaldo cada 25 segundos (por si el Realtime falla)
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      _sincronizarSolicitudesPendientes(duenioId, dispararPush: true);
+    });
+  }
+
+  /// Detiene Realtime y polling.
+  void detenerVigilancia() {
+    _realtimeChannel?.unsubscribe();
+    _realtimeChannel = null;
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    _duenioIdActivo = null;
+  }
+
+  // ─── Realtime ─────────────────────────────────────────────────────────────
+  void _suscribirRealtime(String duenioId) {
     _realtimeChannel?.unsubscribe();
     _realtimeChannel = Supabase.instance.client
-        .channel('solicitudes_duenio_$duenioId')
+        .channel('adopciones_duenio_$duenioId')
         .onPostgresChanges(
           event: PostgresChangeEvent.insert,
           schema: 'public',
           table: 'solicitudes_adopcion',
           callback: (payload) async {
-            final nueva = payload.newRecord;
-            final mascId = nueva['masc_id']?.toString() ?? '';
-
-            // Verificar que la mascota pertenece al dueño actual
-            try {
-              final mascota = await Supabase.instance.client
-                  .from('mascotas')
-                  .select('usua_id, masc_nombre')
-                  .eq('masc_id', mascId)
-                  .single();
-
-              if (mascota['usua_id']?.toString() != duenioId) return;
-
-              // Obtener datos del solicitante
-              final solicitudCompleta = await Supabase.instance.client
-                  .from('solicitudes_adopcion')
-                  .select(
-                      '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)')
-                  .eq('soli_id', nueva['soli_id'].toString())
-                  .single();
-
-              final model = SolicitudAdopcionModel.fromJson(solicitudCompleta);
-              _notificacionesPendientes.insert(0, model);
-
-              // También agregar a la lista de recibidas
-              if (!_solicitudesRecibidas.any((s) => s.id == model.id)) {
-                _solicitudesRecibidas.insert(0, model);
-              }
-
-              // ── Notificación push + feedback in-app ──────────────────────
-              final mascNombre = model.mascotaNombre ?? 'tu mascota';
-              final solicitanteNom = model.usuarioNombre ?? 'Alguien';
-              final notifId = NotificacionLocalService.idDesde('adopcion_${model.id}');
-
-              // Vibración in-app
-              NotificacionLocalService.instance.feedbackInApp(urgente: false);
-
-              // Push del sistema
-              NotificacionLocalService.instance.mostrarInmediata(
-                id: notifId,
-                titulo: '🐾 Nueva solicitud de adopción',
-                cuerpo: '$solicitanteNom quiere adoptar a $mascNombre.',
-                urgente: false,
-                subtext: mascNombre,
-              );
-
-              notifyListeners();
-            } catch (e) {
-              debugPrint('Error en notificación realtime: $e');
-            }
+            final soliId = payload.newRecord['soli_id']?.toString() ?? '';
+            if (soliId.isEmpty) return;
+            debugPrint('Realtime INSERT adopcion soliId=$soliId');
+            // Forzar sincronización inmediata con push
+            await _procesarNuevaSolicitud(soliId, duenioId);
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('Realtime adopciones: $status ${error ?? ""}');
+        });
   }
 
+  // ─── Lógica central de sincronización ────────────────────────────────────
+
+  /// Consulta Supabase y procesa solicitudes pendientes nuevas.
+  /// [dispararPush] = false en la carga inicial, true en polling y Realtime.
+  Future<void> _sincronizarSolicitudesPendientes(
+      String duenioId, {required bool dispararPush}) async {
+    try {
+      // Obtener mascotas del dueño
+      final mascotasRaw = await Supabase.instance.client
+          .from('mascotas')
+          .select('masc_id')
+          .eq('usua_id', duenioId);
+
+      final mascIds = (mascotasRaw as List)
+          .map((m) => m['masc_id'].toString())
+          .toList();
+      if (mascIds.isEmpty) return;
+
+      // Solicitudes pendientes con datos completos del solicitante
+      final rows = await Supabase.instance.client
+          .from('solicitudes_adopcion')
+          .select(
+              '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), '
+              'usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)')
+          .inFilter('masc_id', mascIds)
+          .eq('soli_estado', 'Pendiente')
+          .order('soli_fecha', ascending: false);
+
+      bool hayNuevas = false;
+
+      for (final row in rows) {
+        // Verificar que la mascota pertenece a este dueño
+        final propId = (row['mascotas'] as Map?)?['usua_id']?.toString() ?? '';
+        if (propId != duenioId) continue;
+
+        final model = SolicitudAdopcionModel.fromJson(row);
+
+        // Agregar a solicitudesRecibidas si no existe
+        if (!_solicitudesRecibidas.any((s) => s.id == model.id)) {
+          _solicitudesRecibidas.insert(0, model);
+        }
+
+        // Solo notificar si es nueva (no vista antes)
+        if (!_idsSolicitusVistas.contains(model.id)) {
+          if (!_notificacionesPendientes.any((n) => n.id == model.id)) {
+            _notificacionesPendientes.insert(0, model);
+          }
+
+          if (dispararPush) {
+            hayNuevas = true;
+            final mascNombre = model.mascotaNombre ?? 'tu mascota';
+            final solicitante = model.usuarioNombre ?? 'Alguien';
+            final notifId =
+                NotificacionLocalService.idDesde('adopcion_${model.id}');
+
+            debugPrint('Push adopción: $solicitante → $mascNombre');
+
+            // Marcar como vista ANTES de disparar para que el polling
+            // no vuelva a enviar la misma notificación segundos después
+            _idsSolicitusVistas.add(model.id);
+
+            await NotificacionLocalService.instance.feedbackInApp(urgente: false);
+            await NotificacionLocalService.instance.mostrarInmediata(
+              id: notifId,
+              titulo: '🐾 Nueva solicitud de adopción',
+              cuerpo: '$solicitante quiere adoptar a $mascNombre.',
+              urgente: false,
+              subtext: mascNombre,
+              payload: 'adopcion:${model.id}',
+            );
+          }
+        }
+      }
+
+      if (hayNuevas || !dispararPush) {
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error en _sincronizarSolicitudesPendientes: $e');
+    }
+  }
+
+  /// Procesa una solicitud específica recién llegada por Realtime.
+  Future<void> _procesarNuevaSolicitud(String soliId, String duenioId) async {
+    try {
+      final row = await Supabase.instance.client
+          .from('solicitudes_adopcion')
+          .select(
+              '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), '
+              'usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)')
+          .eq('soli_id', soliId)
+          .maybeSingle();
+
+      if (row == null) return;
+
+      final propId = (row['mascotas'] as Map?)?['usua_id']?.toString() ?? '';
+      if (propId != duenioId) return;
+
+      final model = SolicitudAdopcionModel.fromJson(row);
+
+      bool esNueva = !_idsSolicitusVistas.contains(model.id);
+
+      if (!_solicitudesRecibidas.any((s) => s.id == model.id)) {
+        _solicitudesRecibidas.insert(0, model);
+      }
+      if (esNueva && !_notificacionesPendientes.any((n) => n.id == model.id)) {
+        _notificacionesPendientes.insert(0, model);
+      }
+
+      if (esNueva) {
+        final mascNombre = model.mascotaNombre ?? 'tu mascota';
+        final solicitante = model.usuarioNombre ?? 'Alguien';
+        final notifId =
+            NotificacionLocalService.idDesde('adopcion_${model.id}');
+
+        // Marcar como vista ANTES de disparar para que el polling
+        // no vuelva a enviar la misma notificación segundos después
+        _idsSolicitusVistas.add(model.id);
+
+        await NotificacionLocalService.instance.feedbackInApp(urgente: false);
+        await NotificacionLocalService.instance.mostrarInmediata(
+          id: notifId,
+          titulo: '🐾 Nueva solicitud de adopción',
+          cuerpo: '$solicitante quiere adoptar a $mascNombre.',
+          urgente: false,
+          subtext: mascNombre,
+          payload: 'adopcion:${model.id}',
+        );
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error procesando nueva solicitud $soliId: $e');
+    }
+  }
+
+  // ─── Compatibilidad con código anterior ───────────────────────────────────
+
+  /// Alias para iniciarVigilancia (compatibilidad con HomeScreen).
+  void suscribirNotificaciones(String duenioId) {
+    iniciarVigilancia(duenioId);
+  }
+
+  /// Alias para detenerVigilancia.
   void desuscribirNotificaciones() {
-    _realtimeChannel?.unsubscribe();
-    _realtimeChannel = null;
+    detenerVigilancia();
   }
 
-  /// Marca una notificación como vista (la elimina del badge).
+  /// Carga inicial explícita (sin push). Llamado desde HomeScreen.
+  Future<void> cargarNotificacionesExistentes(String duenioId) async {
+    await _sincronizarSolicitudesPendientes(duenioId, dispararPush: false);
+  }
+
+  // ─── Gestión de notificaciones ────────────────────────────────────────────
+
+  /// Marca una notificación como vista (la saca del badge pero no del historial).
   void marcarNotificacionVista(String soliId) {
+    _idsSolicitusVistas.add(soliId);
     _notificacionesPendientes.removeWhere((n) => n.id == soliId);
     notifyListeners();
   }
 
-  /// Limpia todas las notificaciones pendientes.
+  /// Limpia todas las notificaciones pendientes (badge → 0).
   void limpiarNotificaciones() {
+    for (final n in _notificacionesPendientes) {
+      _idsSolicitusVistas.add(n.id);
+    }
     _notificacionesPendientes.clear();
     notifyListeners();
   }
 
   // ─── Solicitudes ─────────────────────────────────────────────────────────
 
-  /// Envía una solicitud de adopción.
   Future<bool> enviarSolicitud({
     required String usuaId,
     required String mascId,
@@ -125,8 +267,7 @@ class SolicitudAdopcionController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      final nueva = await _service.enviarSolicitud(
-          usuaId: usuaId, mascId: mascId);
+      final nueva = await _service.enviarSolicitud(usuaId: usuaId, mascId: mascId);
       _misSolicitudes.insert(0, nueva);
       _isLoading = false;
       notifyListeners();
@@ -139,7 +280,6 @@ class SolicitudAdopcionController extends ChangeNotifier {
     }
   }
 
-  /// Carga las solicitudes enviadas por el usuario logueado.
   Future<void> cargarMisSolicitudes(String usuaId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -154,7 +294,6 @@ class SolicitudAdopcionController extends ChangeNotifier {
     }
   }
 
-  /// Carga las solicitudes recibidas para las mascotas del dueño logueado.
   Future<void> cargarSolicitudesRecibidas(String duenioId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -169,8 +308,6 @@ class SolicitudAdopcionController extends ChangeNotifier {
     }
   }
 
-  /// Confirma la adopción: cambia el dueño de la mascota al solicitante
-  /// y actualiza el estado de la mascota a 'propio'.
   Future<bool> confirmarAdopcion(SolicitudAdopcionModel solicitud) async {
     _isLoading = true;
     _errorMessage = null;
@@ -178,7 +315,6 @@ class SolicitudAdopcionController extends ChangeNotifier {
     try {
       final actualizada = await _service.confirmarAdopcion(solicitud);
       _actualizarEnListas(actualizada);
-      // Quitar de recibidas pendientes (la mascota ya no está en adopción)
       _solicitudesRecibidas.removeWhere(
         (s) => s.mascId == solicitud.mascId && s.id != solicitud.id,
       );
@@ -193,12 +329,10 @@ class SolicitudAdopcionController extends ChangeNotifier {
     }
   }
 
-  /// Rechaza una solicitud (dueño de la mascota).
   Future<bool> rechazarSolicitud(String soliId) async {
     return _cambiarEstado(soliId, 'Rechazada');
   }
 
-  /// Cancela una solicitud pendiente (el solicitante).
   Future<bool> cancelarSolicitud(String soliId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -218,7 +352,6 @@ class SolicitudAdopcionController extends ChangeNotifier {
     }
   }
 
-  /// Verifica el estado actual de la solicitud de un usuario para una mascota.
   Future<String?> estadoSolicitud({
     required String usuaId,
     required String mascId,
@@ -252,11 +385,18 @@ class SolicitudAdopcionController extends ChangeNotifier {
   }
 
   void limpiar() {
-    desuscribirNotificaciones();
+    detenerVigilancia();
     _misSolicitudes = [];
     _solicitudesRecibidas = [];
     _notificacionesPendientes.clear();
+    _idsSolicitusVistas.clear();
     _errorMessage = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    detenerVigilancia();
+    super.dispose();
   }
 }

@@ -429,6 +429,16 @@ class _VetPerfilScreenState extends State<VetPerfilScreen>
               ? '\$${vet!.tarifa!.toStringAsFixed(2)}'
               : 'No registrada',
           _orangeAccent,
+        ),
+        _modernInfoRow(
+          Icons.location_on_rounded,
+          'Ubicación del consultorio',
+          vet?.direccion != null && vet!.direccion!.isNotEmpty
+              ? vet.direccion!
+              : (vet?.latitud != null
+                  ? 'Lat: ${vet!.latitud!.toStringAsFixed(5)}, Lng: ${vet.longitud!.toStringAsFixed(5)}'
+                  : 'No registrada'),
+          const Color(0xFFE53935),
           isLast: true,
         ),
       ],
@@ -1040,6 +1050,10 @@ class _VetEditSheetState extends State<_VetEditSheet> {
       experiencia: int.tryParse(_experienciaCtrl.text.trim()),
       tarifa: double.tryParse(_tarifaCtrl.text.trim()),
       disponible: _disponible,
+      // Preservar ubicación existente para no sobreescribirla al editar el perfil
+      latitud: vetCtrl.perfil?.latitud,
+      longitud: vetCtrl.perfil?.longitud,
+      direccion: vetCtrl.perfil?.direccion,
     );
 
     final ok = await vetCtrl.guardarPerfil(vetModel);

@@ -8,6 +8,7 @@ import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
 import '../../../data/models/cita_model.dart';
 import '../../../data/models/mascota_model.dart';
+import '../../../data/models/veterinario_model.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
@@ -27,7 +28,7 @@ class UrgenciasUsuarioScreen extends StatefulWidget {
 }
 
 class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
-  // Paso: 0 = síntomas/mascota, 1 = confirmar/ubicación
+  // Paso: 0 = síntomas/mascota, 1 = seleccionar veterinario, 2 = confirmar/ubicación
   int _paso = 0;
 
   // Selección mascota
@@ -37,6 +38,9 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
 
   // Síntomas — prioridad siempre CRÍTICA
   final _sintomasCtrl = TextEditingController();
+
+  // Veterinario seleccionado manualmente
+  VeterinarioModel? _veterinarioSeleccionado;
 
   // Modalidad de atención
   String _modalidad = 'local'; // 'local' | 'domicilio'
@@ -73,7 +77,9 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
     return tieneNombre && _sintomasCtrl.text.trim().isNotEmpty;
   }
 
-  bool get _paso1Valido {
+  bool get _paso1Valido => _veterinarioSeleccionado != null;
+
+  bool get _paso2Valido {
     if (_modalidad == 'domicilio') return _ubicacion != null;
     return true;
   }
@@ -126,14 +132,17 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
                     const SizedBox(width: 48),
                   ]),
                 ),
-                // Indicador de pasos (2 pasos)
+                // Indicador de pasos (3 pasos)
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 60),
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Row(children: [
                     _stepDot(0, 'Síntomas'),
                     Expanded(child: Container(height: 2,
                         color: _paso > 0 ? Colors.white : Colors.white.withValues(alpha: 0.3))),
-                    _stepDot(1, 'Confirmar'),
+                    _stepDot(1, 'Veterinario'),
+                    Expanded(child: Container(height: 2,
+                        color: _paso > 1 ? Colors.white : Colors.white.withValues(alpha: 0.3))),
+                    _stepDot(2, 'Confirmar'),
                   ]),
                 ),
                 const SizedBox(height: 8),
@@ -154,10 +163,10 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _pasoActualValido() ? _avanzar : null,
                       icon: Icon(
-                        _paso < 1 ? Icons.arrow_forward_rounded : Icons.emergency_rounded,
+                        _paso < 2 ? Icons.arrow_forward_rounded : Icons.emergency_rounded,
                         color: Colors.white),
                       label: Text(
-                        _paso < 1 ? 'Siguiente' : 'Enviar Urgencia',
+                        _paso < 2 ? 'Siguiente' : 'Enviar Urgencia',
                         style: GoogleFonts.poppins(
                             fontSize: 16, fontWeight: FontWeight.w700)),
                       style: ElevatedButton.styleFrom(
@@ -181,11 +190,12 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
 
   bool _pasoActualValido() {
     if (_paso == 0) return _paso0Valido;
-    return _paso1Valido;
+    if (_paso == 1) return _paso1Valido;
+    return _paso2Valido;
   }
 
   void _avanzar() {
-    if (_paso < 1) setState(() => _paso++);
+    if (_paso < 2) setState(() => _paso++);
     else _confirmarUrgencia();
   }
 
@@ -216,7 +226,8 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
   Widget _buildPaso() {
     switch (_paso) {
       case 0: return _buildPasoSintomas();
-      case 1: return _buildPasoConfirmar();
+      case 1: return _buildPasoVeterinario();
+      case 2: return _buildPasoConfirmar();
       default: return const SizedBox.shrink();
     }
   }
@@ -377,7 +388,256 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
     );
   }
 
-  // ── PASO 1: Confirmar + modalidad + ubicación ─────────────────────────────
+  // ── PASO 1: Seleccionar veterinario ──────────────────────────────────────
+  Widget _buildPasoVeterinario() {
+    return SingleChildScrollView(
+      key: const ValueKey(1),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(20),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // Banner info
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: _teal.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _teal.withValues(alpha: 0.3)),
+          ),
+          child: Row(children: [
+            const Icon(Icons.info_outline_rounded, color: _teal, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(
+              'Selecciona el veterinario que atenderá tu urgencia.',
+              style: GoogleFonts.poppins(
+                  fontSize: 12, fontWeight: FontWeight.w600, color: _teal),
+            )),
+          ]),
+        ),
+        const SizedBox(height: 20),
+        _sectionTitle('Veterinarios disponibles', Icons.medical_services_rounded),
+        const SizedBox(height: 12),
+        Consumer<VeterinarioController>(
+          builder: (_, ctrl, __) {
+            if (ctrl.isLoading) {
+              return const Center(
+                  child: CircularProgressIndicator(color: _red));
+            }
+            final vets = ctrl.todos;
+            if (vets.isEmpty) {
+              return Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(children: [
+                  Icon(Icons.person_off_outlined,
+                      size: 44, color: Colors.grey.shade300),
+                  const SizedBox(height: 10),
+                  Text('No hay veterinarios registrados',
+                      style: GoogleFonts.poppins(
+                          fontSize: 13, color: Colors.grey.shade500)),
+                ]),
+              );
+            }
+            return Column(
+              children: vets.map((v) => _vetCard(v)).toList(),
+            );
+          },
+        ),
+      ]),
+    );
+  }
+
+  Widget _vetCard(VeterinarioModel v) {
+    final sel = _veterinarioSeleccionado?.id == v.id;
+    final nombre = (v.nombre != null && v.nombre!.isNotEmpty)
+        ? v.nombre!
+        : 'Veterinario';
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: sel ? const Color(0xFFFFEBEE) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+            color: sel ? _red : Colors.grey.shade200,
+            width: sel ? 2 : 1.2),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8, offset: const Offset(0, 3))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(children: [
+          // Fila principal: avatar + info + check
+          Row(children: [
+            // Avatar
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: _teal.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: sel ? _red.withValues(alpha: 0.4) : _teal.withValues(alpha: 0.25),
+                    width: 2),
+              ),
+              child: ClipOval(
+                child: (v.fotoUrl != null && v.fotoUrl!.isNotEmpty)
+                    ? Image.network(v.fotoUrl!, fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const Icon(
+                            Icons.person_outline_rounded, size: 28, color: _teal))
+                    : const Icon(Icons.person_outline_rounded,
+                        size: 28, color: _teal),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(
+                    child: Text('Dr/a. $nombre',
+                        style: GoogleFonts.poppins(
+                            fontSize: 14, fontWeight: FontWeight.w700,
+                            color: _dark),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  _badgeDisponible(v.disponible),
+                ]),
+                if (v.especialidad != null && v.especialidad!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(v.especialidad!,
+                      style: GoogleFonts.poppins(
+                          fontSize: 11, color: _teal,
+                          fontWeight: FontWeight.w600)),
+                ],
+                const SizedBox(height: 4),
+                Row(children: [
+                  if (v.experiencia != null) ...[
+                    const Icon(Icons.workspace_premium_rounded,
+                        size: 12, color: _grey),
+                    const SizedBox(width: 3),
+                    Text('${v.experiencia} años',
+                        style: GoogleFonts.poppins(fontSize: 10, color: _grey)),
+                    const SizedBox(width: 10),
+                  ],
+                  if (v.tarifa != null) ...[
+                    const Icon(Icons.attach_money_rounded,
+                        size: 13, color: Color(0xFFE58D57)),
+                    Text('\$${v.tarifa!.toStringAsFixed(0)}',
+                        style: GoogleFonts.poppins(
+                            fontSize: 10, fontWeight: FontWeight.w600,
+                            color: const Color(0xFFE58D57))),
+                  ],
+                ]),
+              ]),
+            ),
+            if (sel)
+              const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.check_circle_rounded, color: _red, size: 24),
+              ),
+          ]),
+          const SizedBox(height: 12),
+          // Botones: Ver perfil + Seleccionar
+          Row(children: [
+            // Botón Ver perfil
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _mostrarPerfilVet(v),
+                icon: const Icon(Icons.person_outlined, size: 15),
+                label: Text('Ver perfil',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _teal,
+                  side: const BorderSide(color: _teal, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Botón Seleccionar
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: v.disponible
+                    ? () => setState(() => _veterinarioSeleccionado = v)
+                    : null,
+                icon: Icon(
+                    sel ? Icons.check_rounded : Icons.emergency_share_rounded,
+                    size: 15),
+                label: Text(sel ? 'Seleccionado' : 'Seleccionar',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: sel ? _red : _red.withValues(alpha: 0.85),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade200,
+                  disabledForegroundColor: Colors.grey.shade400,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                ),
+              ),
+            ),
+          ]),
+        ]),
+      ),
+    );
+  }
+
+  Widget _badgeDisponible(bool disponible) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: disponible ? Colors.green.shade50 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 6, height: 6,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: disponible ? Colors.green.shade400 : Colors.grey.shade400,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          disponible ? 'Disponible' : 'Ocupado',
+          style: GoogleFonts.poppins(
+            fontSize: 9, fontWeight: FontWeight.w600,
+            color: disponible ? Colors.green.shade700 : Colors.grey.shade500,
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _mostrarPerfilVet(VeterinarioModel v) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PerfilVetUrgenciaSheet(
+        vet: v,
+        onSeleccionar: v.disponible
+            ? () {
+                setState(() => _veterinarioSeleccionado = v);
+                Navigator.pop(context);
+              }
+            : null,
+      ),
+    );
+  }
+
+  // ── PASO 2: Confirmar + modalidad + ubicación ─────────────────────────────
   Widget _buildPasoConfirmar() {
     final user = context.read<AuthController>().currentUser;
     final now = DateTime.now();
@@ -421,6 +681,26 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
             _resumenRow('Prioridad', 'CRÍTICA'),
           ],
         ),
+        const SizedBox(height: 16),
+
+        // Resumen veterinario seleccionado
+        if (_veterinarioSeleccionado != null)
+          _resumenCard(
+            icon: Icons.medical_services_rounded,
+            color: _teal,
+            titulo: 'Veterinario asignado',
+            items: [
+              _resumenRow('Dr/a.',
+                  _veterinarioSeleccionado!.nombre ?? 'Veterinario'),
+              if (_veterinarioSeleccionado!.especialidad != null &&
+                  _veterinarioSeleccionado!.especialidad!.isNotEmpty)
+                _resumenRow('Especialidad',
+                    _veterinarioSeleccionado!.especialidad!),
+              if (_veterinarioSeleccionado!.tarifa != null)
+                _resumenRow('Tarifa',
+                    '\$${_veterinarioSeleccionado!.tarifa!.toStringAsFixed(0)}'),
+            ],
+          ),
         const SizedBox(height: 16),
 
         // Modalidad de atención
@@ -636,12 +916,8 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
   Future<void> _confirmarUrgencia() async {
     final auth = context.read<AuthController>();
     final citaCtrl = context.read<CitaController>();
-    final vetCtrl = context.read<VeterinarioController>();
     final user = auth.currentUser;
     if (user == null) return;
-
-    // Seleccionar automáticamente el primer veterinario disponible
-    final vetDisponible = vetCtrl.todos.where((v) => v.disponible).firstOrNull;
 
     final now = DateTime.now();
     final minutos = (now.minute ~/ 5 + 1) * 5;
@@ -664,7 +940,7 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
     final cita = CitaModel(
       id: '',
       usuarioId: user.id,
-      veteId: vetDisponible?.id,
+      veteId: _veterinarioSeleccionado?.id,
       mascotaId: _mascotaSeleccionada?.id,
       mascotaNombre: _nombreMascota,
       propietarioNombre: user.nombre,
@@ -764,6 +1040,331 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
       const SizedBox(width: 10),
       Expanded(child: Text(t, style: GoogleFonts.poppins(
           fontSize: 15, fontWeight: FontWeight.w700, color: _dark))),
+    ]);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sheet: Perfil del Veterinario (para urgencias)
+// ═══════════════════════════════════════════════════════════════════════════
+class _PerfilVetUrgenciaSheet extends StatelessWidget {
+  final VeterinarioModel vet;
+  final VoidCallback? onSeleccionar;
+
+  const _PerfilVetUrgenciaSheet({
+    required this.vet,
+    this.onSeleccionar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final nombre =
+        (vet.nombre != null && vet.nombre!.isNotEmpty) ? vet.nombre! : 'Veterinario';
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.75,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder: (_, sc) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(children: [
+          // Handle
+          const SizedBox(height: 12),
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Cabecera: avatar + nombre + especialidad
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(children: [
+              // Avatar
+              Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  color: _teal.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _teal.withValues(alpha: 0.35), width: 2.5),
+                ),
+                child: ClipOval(
+                  child: (vet.fotoUrl != null && vet.fotoUrl!.isNotEmpty)
+                      ? Image.network(vet.fotoUrl!, fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              const Icon(Icons.person_rounded, size: 36, color: _teal))
+                      : const Icon(Icons.person_rounded, size: 36, color: _teal),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Dr/a. $nombre',
+                      style: GoogleFonts.poppins(
+                          fontSize: 18, fontWeight: FontWeight.w800, color: _dark)),
+                  if (vet.especialidad != null && vet.especialidad!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _teal, borderRadius: BorderRadius.circular(20)),
+                      child: Text(vet.especialidad!,
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, fontWeight: FontWeight.w700,
+                              color: Colors.white)),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  // Badge disponible
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: vet.disponible
+                          ? Colors.green.shade50 : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(
+                        width: 7, height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: vet.disponible
+                              ? Colors.green.shade400 : Colors.grey.shade400,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        vet.disponible ? 'Disponible' : 'No disponible',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11, fontWeight: FontWeight.w600,
+                          color: vet.disponible
+                              ? Colors.green.shade700 : Colors.grey.shade500,
+                        ),
+                      ),
+                    ]),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 20),
+          Divider(color: Colors.grey.shade100, height: 1),
+
+          // Contenido scrollable
+          Expanded(
+            child: ListView(
+              controller: sc,
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              children: [
+                // Stats
+                Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6FAFA),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _statItem(
+                        icon: Icons.workspace_premium_rounded,
+                        color: _teal,
+                        value: vet.experiencia != null
+                            ? '${vet.experiencia} años' : 'N/D',
+                        label: 'Experiencia',
+                      ),
+                      Container(width: 1, height: 44, color: Colors.grey.shade200),
+                      _statItem(
+                        icon: Icons.attach_money_rounded,
+                        color: const Color(0xFFE58D57),
+                        value: vet.tarifa != null
+                            ? '\$${vet.tarifa!.toStringAsFixed(0)}' : 'N/D',
+                        label: 'Tarifa',
+                      ),
+                      Container(width: 1, height: 44, color: Colors.grey.shade200),
+                      _statItem(
+                        icon: Icons.location_on_rounded,
+                        color: _red,
+                        value: vet.direccion != null &&
+                                vet.direccion!.isNotEmpty
+                            ? 'Con dirección' : 'Sin dirección',
+                        label: 'Ubicación',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Acerca del profesional
+                _infoCard(
+                  title: 'Acerca del profesional',
+                  icon: Icons.info_outline_rounded,
+                  color: _teal,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _profileRow(
+                        Icons.school_outlined,
+                        'Especialidad',
+                        (vet.especialidad != null && vet.especialidad!.isNotEmpty)
+                            ? vet.especialidad!
+                            : 'Medicina general veterinaria',
+                        _teal,
+                      ),
+                      if (vet.experiencia != null) ...[
+                        const SizedBox(height: 10),
+                        _profileRow(
+                          Icons.workspace_premium_rounded,
+                          'Experiencia',
+                          '${vet.experiencia} años de práctica clínica',
+                          _teal,
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      _profileRow(
+                        Icons.verified_outlined,
+                        'Registro',
+                        'Veterinario certificado y habilitado',
+                        _teal,
+                      ),
+                      if (vet.direccion != null && vet.direccion!.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        _profileRow(
+                          Icons.location_on_outlined,
+                          'Dirección',
+                          vet.direccion!,
+                          _red,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+
+          // Botón seleccionar
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 16, offset: const Offset(0, -4))],
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: onSeleccionar,
+                icon: const Icon(Icons.emergency_share_rounded, size: 20),
+                label: Text(
+                  vet.disponible ? 'Seleccionar para urgencia' : 'No disponible',
+                  style: GoogleFonts.poppins(
+                      fontSize: 15, fontWeight: FontWeight.w700),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _red,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey.shade200,
+                  disabledForegroundColor: Colors.grey.shade400,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16)),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _statItem({
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+  }) {
+    return Column(children: [
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+      const SizedBox(height: 5),
+      Text(value,
+          style: GoogleFonts.poppins(
+              fontSize: 12, fontWeight: FontWeight.w700, color: _dark),
+          textAlign: TextAlign.center),
+      Text(label,
+          style: GoogleFonts.poppins(
+              fontSize: 10, color: _grey, fontWeight: FontWeight.w500)),
+    ]);
+  }
+
+  Widget _infoCard({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14, offset: const Offset(0, 4))],
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: color, size: 13),
+          const SizedBox(width: 6),
+          Text(title.toUpperCase(),
+              style: GoogleFonts.poppins(
+                  fontSize: 10, fontWeight: FontWeight.w700,
+                  color: _grey, letterSpacing: 0.8)),
+        ]),
+        const SizedBox(height: 12),
+        child,
+      ]),
+    );
+  }
+
+  Widget _profileRow(IconData icon, String label, String value, Color color) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, color: color, size: 15),
+      ),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: GoogleFonts.poppins(
+                fontSize: 10, color: _grey, fontWeight: FontWeight.w500)),
+        Text(value,
+            style: GoogleFonts.poppins(
+                fontSize: 13, fontWeight: FontWeight.w600, color: _dark)),
+      ])),
     ]);
   }
 }

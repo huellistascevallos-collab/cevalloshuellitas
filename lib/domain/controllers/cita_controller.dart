@@ -20,6 +20,9 @@ class CitaController extends ChangeNotifier {
   final List<NotificacionModel> _notificaciones = [];
   dynamic _realtimeChannel;
 
+  // IDs de notificaciones push ya disparadas (evita duplicado por reconexión Realtime)
+  final Set<String> _pushEnviadas = {};
+
   // Timers de recordatorio por citaId (30 min y hora exacta)
   final Map<String, Timer> _timers = {};
 
@@ -248,17 +251,37 @@ class CitaController extends ChangeNotifier {
                         record['cita_id'].toString());
                     final model = CitaModel.fromJson(full);
 
-                    _agregarNotificacion(NotificacionModel(
-                      id: 'nueva_${model.id}',
-                      tipo: TipoNotificacion.nuevaCita,
-                      titulo: 'Nueva solicitud de cita',
-                      cuerpo:
-                          '${model.propietarioNombre} solicita cita para ${model.mascotaNombre}',
-                      citaId: model.id,
-                      mascotaNombre: model.mascotaNombre,
-                      fecha: model.fecha,
-                      hora: model.hora,
-                    ));
+                    // Detectar si es urgencia crítica
+                    final esUrgencia = model.motivo.startsWith('[URGENCIA:');
+
+                    if (esUrgencia) {
+                      // Notificación push urgente con canal de alta prioridad
+                      final sintomas = model.motivo
+                          .replaceAll(RegExp(r'\[URGENCIA:\w+\]\s*'), '');
+                      _agregarNotificacion(NotificacionModel(
+                        id: 'urgencia_${model.id}',
+                        tipo: TipoNotificacion.urgencia,
+                        titulo: '🚨 Urgencia crítica',
+                        cuerpo:
+                            '${model.propietarioNombre} reporta urgencia de ${model.mascotaNombre}: $sintomas',
+                        citaId: model.id,
+                        mascotaNombre: model.mascotaNombre,
+                        fecha: model.fecha,
+                        hora: model.hora,
+                      ));
+                    } else {
+                      _agregarNotificacion(NotificacionModel(
+                        id: 'nueva_${model.id}',
+                        tipo: TipoNotificacion.nuevaCita,
+                        titulo: 'Nueva solicitud de cita',
+                        cuerpo:
+                            '${model.propietarioNombre} solicita cita para ${model.mascotaNombre}',
+                        citaId: model.id,
+                        mascotaNombre: model.mascotaNombre,
+                        fecha: model.fecha,
+                        hora: model.hora,
+                      ));
+                    }
 
                     if (!_citasDelVeterinario.any((c) => c.id == model.id)) {
                       _citasDelVeterinario.insert(0, model);
@@ -349,7 +372,9 @@ class CitaController extends ChangeNotifier {
             }
           },
         )
-        .subscribe();
+        .subscribe((status, [error]) {
+          debugPrint('Canal citas status: $status error: $error');
+        });
   }
 
   /// Programa recordatorios in-app + notificaciones del sistema para una cita confirmada.
@@ -381,7 +406,7 @@ class CitaController extends ChangeNotifier {
     final delay30 = momentoRecord30.difference(ahora);
 
     if (!delay30.isNegative && delay30.inHours < 48) {
-      // Notificación del sistema — canal normal
+      // Notificación del sistema — canal normal (1 sola vez, programada)
       NotificacionLocalService.instance.programar(
         id: NotificacionLocalService.idDesde('recuerdo30_${cita.id}'),
         titulo: '⏰ Cita en 30 minutos',
@@ -391,10 +416,11 @@ class CitaController extends ChangeNotifier {
         subtext: cita.mascotaNombre,
       );
 
-      // Timer in-app (para cuando la app está abierta)
+      // Timer in-app: solo agrega al panel visual, SIN disparar otra push
+      // (la notificación del sistema ya fue programada arriba)
       _timers['${cita.id}_30min'] = Timer(delay30, () {
-        _agregarNotificacion(NotificacionModel(
-          id: 'recuerdo30_${cita.id}_${DateTime.now().millisecondsSinceEpoch}',
+        _agregarNotificacionSilenciosa(NotificacionModel(
+          id: 'recuerdo30_${cita.id}',
           tipo: TipoNotificacion.recordatorio30min,
           titulo: '⏰ Cita en 30 minutos',
           cuerpo:
@@ -404,6 +430,7 @@ class CitaController extends ChangeNotifier {
           fecha: cita.fecha,
           hora: cita.hora,
         ));
+        NotificacionLocalService.instance.feedbackInApp(urgente: false);
         notifyListeners();
       });
     }
@@ -411,7 +438,7 @@ class CitaController extends ChangeNotifier {
     // ── Recordatorio a la hora de la cita ─────────────────────────────────
     final delayAhora = citaDt.difference(ahora);
     if (!delayAhora.isNegative && delayAhora.inHours < 48) {
-      // Notificación del sistema — canal URGENTE
+      // Notificación del sistema — canal URGENTE (1 sola vez, programada)
       NotificacionLocalService.instance.programar(
         id: NotificacionLocalService.idDesde('recuerdoAhora_${cita.id}'),
         titulo: '🔔 ¡Es la hora de la cita!',
@@ -422,10 +449,10 @@ class CitaController extends ChangeNotifier {
         subtext: cita.mascotaNombre,
       );
 
-      // Timer in-app (para cuando la app está abierta)
+      // Timer in-app: solo agrega al panel visual, SIN disparar otra push
       _timers['${cita.id}_ahora'] = Timer(delayAhora, () {
-        _agregarNotificacion(NotificacionModel(
-          id: 'recuerdoAhora_${cita.id}_${DateTime.now().millisecondsSinceEpoch}',
+        _agregarNotificacionSilenciosa(NotificacionModel(
+          id: 'recuerdoAhora_${cita.id}',
           tipo: TipoNotificacion.recordatorioAhora,
           titulo: '🔔 ¡Es la hora de la cita!',
           cuerpo:
@@ -435,6 +462,7 @@ class CitaController extends ChangeNotifier {
           fecha: cita.fecha,
           hora: cita.hora,
         ));
+        NotificacionLocalService.instance.feedbackInApp(urgente: true);
         notifyListeners();
       });
     }
@@ -451,6 +479,94 @@ class CitaController extends ChangeNotifier {
     }
   }
 
+  /// Carga notificaciones in-app para el estado actual de las citas existentes
+  /// al abrir la app, sin disparar push ni vibración.
+  Future<void> cargarNotificacionesExistentes(
+      String entityId, String rol) async {
+    try {
+      if (rol == 'usuario') {
+        // Citas confirmadas, rechazadas Y pendientes del usuario
+        final rows = await Supabase.instance.client
+            .from('citas')
+            .select('*, mascotas(masc_nombre), usuarios(usua_nombre)')
+            .eq('usua_id', entityId)
+            .inFilter('cita_estado', ['confirmada', 'rechazada', 'pendiente']);
+
+        for (final row in rows) {
+          final model = CitaModel.fromJson(row);
+          if (model.estado.toLowerCase() == 'confirmada') {
+            _agregarNotificacionSilenciosa(NotificacionModel(
+              id: 'confirmada_${model.id}',
+              tipo: TipoNotificacion.citaConfirmada,
+              titulo: '¡Cita confirmada! 🎉',
+              cuerpo:
+                  'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} a las ${model.hora} fue confirmada.',
+              citaId: model.id,
+              mascotaNombre: model.mascotaNombre,
+              fecha: model.fecha,
+              hora: model.hora,
+            ));
+          } else if (model.estado.toLowerCase() == 'rechazada') {
+            _agregarNotificacionSilenciosa(NotificacionModel(
+              id: 'rechazada_${model.id}',
+              tipo: TipoNotificacion.citaRechazada,
+              titulo: 'Cita rechazada',
+              cuerpo:
+                  'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} no pudo ser agendada.',
+              citaId: model.id,
+              mascotaNombre: model.mascotaNombre,
+              fecha: model.fecha,
+              hora: model.hora,
+            ));
+          } else if (model.estado.toLowerCase() == 'pendiente') {
+            _agregarNotificacionSilenciosa(NotificacionModel(
+              id: 'pendiente_${model.id}',
+              tipo: TipoNotificacion.citaPendiente,
+              titulo: 'Cita en espera ⏳',
+              cuerpo:
+                  'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} a las ${model.hora} está pendiente de confirmación.',
+              citaId: model.id,
+              mascotaNombre: model.mascotaNombre,
+              fecha: model.fecha,
+              hora: model.hora,
+            ));
+          }
+        }
+      } else if (rol == 'veterinario') {
+        // Citas pendientes para el veterinario
+        final rows = await Supabase.instance.client
+            .from('citas')
+            .select('*, mascotas(masc_nombre), usuarios(usua_nombre)')
+            .eq('vete_id', entityId)
+            .eq('cita_estado', 'pendiente');
+
+        for (final row in rows) {
+          final model = CitaModel.fromJson(row);
+          _agregarNotificacionSilenciosa(NotificacionModel(
+            id: 'nueva_${model.id}',
+            tipo: TipoNotificacion.nuevaCita,
+            titulo: 'Nueva solicitud de cita',
+            cuerpo:
+                '${model.propietarioNombre} solicita cita para ${model.mascotaNombre}',
+            citaId: model.id,
+            mascotaNombre: model.mascotaNombre,
+            fecha: model.fecha,
+            hora: model.hora,
+          ));
+        }
+      }
+    } catch (e) {
+      debugPrint('Error al cargar notificaciones existentes: $e');
+    }
+    notifyListeners();
+  }
+
+  /// Agrega una notificación a la lista sin disparar push ni vibración.
+  void _agregarNotificacionSilenciosa(NotificacionModel n) {
+    _notificaciones.removeWhere((e) => e.id == n.id);
+    _notificaciones.add(n);
+  }
+
   Future<Map<String, dynamic>> _fetchCitaCompleta(String citaId) async {
     return await Supabase.instance.client
         .from('citas')
@@ -460,9 +576,13 @@ class CitaController extends ChangeNotifier {
   }
 
   void _agregarNotificacion(NotificacionModel n) {
-    // Evitar duplicados por id
+    // Evitar duplicados por id en la lista visual
     _notificaciones.removeWhere((e) => e.id == n.id);
     _notificaciones.insert(0, n);
+
+    // Si ya se envió la push para este id, no repetir
+    if (_pushEnviadas.contains(n.id)) return;
+    _pushEnviadas.add(n.id);
 
     // Determinar si es urgente
     final urgente = n.prioridad == PrioridadNotificacion.alta;
@@ -470,13 +590,14 @@ class CitaController extends ChangeNotifier {
     // Feedback in-app (vibración) cuando la app está abierta
     NotificacionLocalService.instance.feedbackInApp(urgente: urgente);
 
-    // Notificación push del sistema (funciona también con app cerrada)
+    // Notificación push del sistema (1 sola vez)
     NotificacionLocalService.instance.mostrarInmediata(
       id: NotificacionLocalService.idDesde(n.id),
       titulo: n.titulo,
       cuerpo: n.cuerpo,
       urgente: urgente,
       subtext: n.mascotaNombre,
+      payload: 'cita:${n.citaId ?? n.id}',
     );
   }
 
@@ -506,6 +627,7 @@ class CitaController extends ChangeNotifier {
       t.cancel();
     }
     _timers.clear();
+    _pushEnviadas.clear();
   }
 
   @override

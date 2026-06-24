@@ -11,9 +11,11 @@ class MascotaModel {
   final String estado;     // masc_estado
   final String? descripcion; // masc_descripcion
   final String? fotoUrl;     // masc_foto_url
+  final DateTime? createdAt; // created_at — fecha de registro en la DB
   // Datos del propietario (solo disponibles cuando se hace join con usuarios)
   final String? propietarioNombre;
   final String? propietarioTelefono;
+  final String? propietarioFotoUrl; // usua_foto_url via join
 
   MascotaModel({
     required this.id,
@@ -26,8 +28,10 @@ class MascotaModel {
     this.estado = 'Disponible',
     this.descripcion,
     this.fotoUrl,
+    this.createdAt,
     this.propietarioNombre,
     this.propietarioTelefono,
+    this.propietarioFotoUrl,
   });
 
   factory MascotaModel.fromJson(Map<String, dynamic> json) {
@@ -45,8 +49,12 @@ class MascotaModel {
       estado: json['masc_estado'] as String? ?? 'Disponible',
       descripcion: json['masc_descripcion'] as String?,
       fotoUrl: json['masc_foto_url'] as String?,
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'] as String)
+          : null,
       propietarioNombre: usuariosJoin?['usua_nombre'] as String?,
       propietarioTelefono: usuariosJoin?['usua_telefono'] as String?,
+      propietarioFotoUrl: usuariosJoin?['usua_foto_url'] as String?,
     );
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../data/models/cita_model.dart';
@@ -16,24 +17,252 @@ class UrgenciasScreen extends StatefulWidget {
 
 class _UrgenciasScreenState extends State<UrgenciasScreen> {
   bool _cargando = true;
+  final Set<String> _urgenciasNotificadas = {};
+  // Referencia guardada para usar en dispose() sin acceder a context
+  CitaController? _citaCtrl;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       final uid = context.read<AuthController>().currentUser?.id;
       final vetCtrl = context.read<VeterinarioController>();
-      final citaCtrl = context.read<CitaController>();
+      _citaCtrl = context.read<CitaController>();
 
       if (uid != null) {
         await vetCtrl.cargarPerfil(uid);
         final veteId = vetCtrl.perfil?.id;
         if (veteId != null && veteId.isNotEmpty) {
-          await citaCtrl.cargarCitasDeVeterinario(veteId);
+          await _citaCtrl!.cargarCitasDeVeterinario(veteId);
+          _citaCtrl!.suscribirNotificaciones(
+              entityId: veteId, rol: 'veterinario');
+          _citaCtrl!.addListener(_onNuevaUrgencia);
         }
       }
       if (mounted) setState(() => _cargando = false);
     });
+  }
+
+  @override
+  void dispose() {
+    // Usar referencia guardada, nunca context en dispose
+    _citaCtrl?.removeListener(_onNuevaUrgencia);
+    super.dispose();
+  }
+
+  /// Listener: cuando llega una nueva urgencia muestra el diálogo de alerta
+  void _onNuevaUrgencia() {
+    if (!mounted) return;
+    final citaCtrl = _citaCtrl;
+    if (citaCtrl == null) return;
+    final urgenciasNuevas = citaCtrl.citasDelVeterinario.where((c) {
+      final esUrgencia = c.motivo.startsWith('[URGENCIA:');
+      final esPendiente = c.estado.toLowerCase() == 'pendiente';
+      final noNotificada = !_urgenciasNotificadas.contains(c.id);
+      return esUrgencia && esPendiente && noNotificada;
+    }).toList();
+
+    for (final cita in urgenciasNuevas) {
+      _urgenciasNotificadas.add(cita.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mostrarDialogoUrgencia(cita);
+      });
+    }
+  }
+
+  /// Diálogo de alerta de emergencia con Aceptar / Rechazar
+  void _mostrarDialogoUrgencia(CitaModel cita) {
+    HapticFeedback.heavyImpact();
+    final sintomas = _extraerSintomas(cita.motivo);
+    final citaCtrl = context.read<CitaController>();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => WillPopScope(
+        onWillPop: () async => false,
+        child: Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícono pulsante de emergencia
+                Container(
+                  width: 72, height: 72,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB71C1C).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                        color: const Color(0xFFB71C1C).withValues(alpha: 0.4),
+                        width: 2.5),
+                  ),
+                  child: const Icon(Icons.emergency_rounded,
+                      color: Color(0xFFB71C1C), size: 38),
+                ),
+                const SizedBox(height: 16),
+                // Título
+                Text(
+                  '🚨 Urgencia Crítica',
+                  style: GoogleFonts.poppins(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFFB71C1C)),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Nueva emergencia veterinaria entrante',
+                  style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade500),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                // Info mascota + propietario
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF5F5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: const Color(0xFFB71C1C).withValues(alpha: 0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _urgRow(Icons.pets_rounded, 'Mascota',
+                          cita.mascotaNombre, const Color(0xFFB71C1C)),
+                      const SizedBox(height: 8),
+                      _urgRow(Icons.person_outline_rounded, 'Propietario',
+                          cita.propietarioNombre, Colors.grey.shade600),
+                      const SizedBox(height: 8),
+                      _urgRow(Icons.notes_rounded, 'Síntomas',
+                          sintomas, const Color(0xFF1A1A2E)),
+                      if (cita.direccion != null &&
+                          cita.direccion!.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        _urgRow(Icons.home_rounded, 'Domicilio',
+                            cita.direccion!, const Color(0xFF1CB5C9)),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Botones Aceptar / Rechazar
+                Row(children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await citaCtrl.actualizarEstado(
+                            cita.id, 'rechazada');
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text('Urgencia rechazada',
+                              style: GoogleFonts.poppins(fontSize: 13)),
+                          backgroundColor: Colors.grey.shade700,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ));
+                      },
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: Text('Rechazar',
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey.shade600,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(context);
+                        await citaCtrl.actualizarEstado(
+                            cita.id, 'confirmada');
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Row(children: [
+                            const Icon(Icons.emergency_rounded,
+                                color: Colors.white, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text('¡Urgencia aceptada! Atiende a ${cita.mascotaNombre}.',
+                                  style: GoogleFonts.poppins(fontSize: 13)),
+                            ),
+                          ]),
+                          backgroundColor: const Color(0xFFB71C1C),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ));
+                        // Navegar al detalle
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    DetalleCitaScreen(cita: cita)),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: Text('Aceptar',
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w800)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB71C1C),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ]),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _urgRow(IconData icon, String label, String value, Color color) {
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Icon(icon, size: 14, color: color),
+      const SizedBox(width: 7),
+      SizedBox(
+        width: 74,
+        child: Text('$label:',
+            style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.grey.shade500,
+                fontWeight: FontWeight.w500)),
+      ),
+      Expanded(
+        child: Text(value,
+            style: GoogleFonts.poppins(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: color)),
+      ),
+    ]);
   }
 
   /// Filtra solo urgencias críticas activas

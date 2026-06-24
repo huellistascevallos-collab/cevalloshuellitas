@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/fcm_service.dart';
 
 /// Controlador de autenticación que maneja el estado de login/registro.
 ///
@@ -35,6 +36,8 @@ class AuthController extends ChangeNotifier {
         correo: correo.trim(),
         password: password,
       );
+      // Guardar token FCM para recibir push remotas
+      await FcmService.instance.guardarToken(_currentUser!.id);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -62,6 +65,8 @@ class AuthController extends ChangeNotifier {
 
     try {
       _currentUser = await _authService.signInWithGoogle();
+      // Guardar token FCM para recibir push remotas
+      await FcmService.instance.guardarToken(_currentUser!.id);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -108,6 +113,8 @@ class AuthController extends ChangeNotifier {
         telefono: telefono?.trim(),
         rol: rol,
       );
+      // Guardar token FCM para recibir push remotas
+      await FcmService.instance.guardarToken(_currentUser!.id);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -127,6 +134,10 @@ class AuthController extends ChangeNotifier {
 
   /// Cierra la sesión actual y limpia el estado.
   Future<void> logout() async {
+    // Limpiar token FCM antes de cerrar sesión
+    if (_currentUser != null) {
+      await FcmService.instance.limpiarToken(_currentUser!.id);
+    }
     await _authService.signOut();
     _currentUser = null;
     _errorMessage = null;
@@ -142,6 +153,8 @@ class AuthController extends ChangeNotifier {
     if (userId != null) {
       try {
         _currentUser = await _authService.getUserProfile(userId);
+        // Actualizar token FCM (puede haber cambiado desde el último login)
+        await FcmService.instance.guardarToken(userId);
       } catch (e) {
         debugPrint('Error al restaurar sesión: $e');
       }

@@ -28,7 +28,7 @@ class ServicioService {
     try {
       final response = await _client
           .from('veterinario_servicios')
-          .select('*, veterinarios(vete_especialidad, vete_disponible, vete_experiencia, vete_tarifa, vete_foto_url, usuarios(usua_nombre, usua_foto_url))')
+          .select('*, veterinarios(vete_especialidad, vete_disponible, vete_experiencia, vete_tarifa, vete_foto_url, vete_latitud, vete_longitud, vete_direccion, usuarios(usua_nombre, usua_foto_url))')
           .eq('serv_id', servId);
       return (response as List)
           .map((e) => VeterinarioServicioModel.fromJson(e))

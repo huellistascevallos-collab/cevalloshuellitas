@@ -8,7 +8,7 @@ class SolicitudAdopcionService {
   static const String _selectJoin = '''
     *,
     mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id),
-    usuarios(usua_nombre, usua_correo)
+    usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)
   ''';
 
   /// Envía una solicitud de adopción.

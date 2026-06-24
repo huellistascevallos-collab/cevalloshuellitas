@@ -40,6 +40,11 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MascotaController>().cargarMascotasAdopcion();
+      // Cargar solicitudes enviadas por el usuario actual
+      final uid = context.read<AuthController>().currentUser?.id;
+      if (uid != null) {
+        context.read<SolicitudAdopcionController>().cargarMisSolicitudes(uid);
+      }
     });
   }
 
@@ -98,6 +103,446 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
         _filtroEspecie = null;
         _filtroAnio = null;
       });
+
+  // ── Sheet de Mis Favoritos ────────────────────────────────────────────────
+  void _showFavoritosSheet(BuildContext context) {
+    final adopContext = context;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangeNotifierProvider.value(
+        value: context.read<MascotaController>(),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.6,
+          maxChildSize: 0.92,
+          minChildSize: 0.3,
+          builder: (_, sc) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.favorite_rounded,
+                        color: Color(0xFFE53935), size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Mis Favoritos',
+                      style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _dark)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Consumer<MascotaController>(
+                  builder: (sheetCtx, ctrl, _) {
+                    final favs = ctrl.mascotasFavoritas;
+                    if (favs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.favorite_border_rounded,
+                                size: 60, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text('No tienes mascotas favoritas aún.',
+                                style: GoogleFonts.poppins(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      controller: sc,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 20, vertical: 8),
+                      itemCount: favs.length,
+                      itemBuilder: (_, i) {
+                        final m = favs[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF8F8),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: const Color(0xFFFFCDD2)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(children: [
+                              // Foto
+                              Container(
+                                width: 56, height: 56,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3F9FA),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
+                                    ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(m.fotoUrl!, fit: BoxFit.cover))
+                                    : const Icon(Icons.pets_rounded,
+                                        color: _teal, size: 28),
+                              ),
+                              const SizedBox(width: 12),
+                              // Info
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(m.nombre,
+                                        style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: _dark)),
+                                    Text('${m.especie} · ${m.raza}',
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade500)),
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () {
+                                        Navigator.pop(sheetCtx);
+                                        _showPerfilDialog(adopContext, m);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: _teal.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color: _teal.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.visibility_outlined,
+                                                color: _teal, size: 11),
+                                            const SizedBox(width: 3),
+                                            Text('Ver Perfil',
+                                                style: GoogleFonts.poppins(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: _teal)),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Quitar favorito
+                              GestureDetector(
+                                onTap: () => ctrl.toggleFavorito(m.id),
+                                child: const Icon(Icons.favorite_rounded,
+                                    color: Color(0xFFE53935), size: 24),
+                              ),
+                            ]),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ── Sheet de Mis Solicitudes ──────────────────────────────────────────────
+  void _showMisSolicitudesSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: context.read<SolicitudAdopcionController>()),
+          ChangeNotifierProvider.value(value: context.read<AuthController>()),
+        ],
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          maxChildSize: 0.92,
+          minChildSize: 0.35,
+          builder: (_, sc) => Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: Column(children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.notifications_rounded, color: _orange, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Text('Mis Solicitudes',
+                      style: GoogleFonts.poppins(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: _dark)),
+                ]),
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'Solicitudes enviadas — cancela si te equivocaste',
+                  style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Consumer<SolicitudAdopcionController>(
+                  builder: (ctx, ctrl, _) {
+                    final solicitudes = [...ctrl.misSolicitudes]
+                      ..sort((a, b) => b.fecha.compareTo(a.fecha)); // más reciente primero
+                    if (ctrl.isLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(color: _orange),
+                      );
+                    }
+                    if (solicitudes.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.notifications_none_rounded,
+                                size: 60, color: Colors.grey.shade300),
+                            const SizedBox(height: 12),
+                            Text('No has enviado solicitudes aún.',
+                                style: GoogleFonts.poppins(
+                                    color: Colors.grey.shade500, fontSize: 14)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.builder(
+                      controller: sc,
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      itemCount: solicitudes.length,
+                      itemBuilder: (_, i) {
+                        final s = solicitudes[i];
+                        final estadoColor = _colorEstado(s.estado);
+                        final estadoIcon = _iconEstado(s.estado);
+                        final puedeCancel = s.estado == 'Pendiente';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: estadoColor.withValues(alpha: 0.04),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: estadoColor.withValues(alpha: 0.25)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Foto mascota
+                                Container(
+                                  width: 56, height: 56,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF3F9FA),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: estadoColor.withValues(alpha: 0.3)),
+                                  ),
+                                  child: (s.mascotaFotoUrl != null && s.mascotaFotoUrl!.isNotEmpty)
+                                      ? ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Image.network(s.mascotaFotoUrl!, fit: BoxFit.cover))
+                                      : const Icon(Icons.pets_rounded, color: _teal, size: 28),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        s.mascotaNombre ?? 'Mascota',
+                                        style: GoogleFonts.poppins(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14, color: _dark),
+                                      ),
+                                      if (s.mascotaEspecie != null)
+                                        Text(
+                                          '${s.mascotaEspecie}${s.mascotaRaza != null ? ' · ${s.mascotaRaza}' : ''}',
+                                          style: GoogleFonts.poppins(
+                                              fontSize: 11, color: _grey),
+                                        ),
+                                      const SizedBox(height: 6),
+                                      // Badge de estado
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: estadoColor.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                          border: Border.all(
+                                              color: estadoColor.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(estadoIcon, size: 12, color: estadoColor),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              s.estado,
+                                              style: GoogleFonts.poppins(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: estadoColor),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _formatFecha(s.fecha),
+                                        style: GoogleFonts.poppins(
+                                            fontSize: 10, color: _grey),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                // Botón cancelar (solo si Pendiente)
+                                if (puedeCancel)
+                                  GestureDetector(
+                                    onTap: () async {
+                                      final confirmar = await showDialog<bool>(
+                                        context: ctx,
+                                        builder: (_) => AlertDialog(
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16)),
+                                          title: Text('Cancelar solicitud',
+                                              style: GoogleFonts.poppins(
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 16)),
+                                          content: Text(
+                                            '¿Seguro que quieres cancelar la solicitud para ${s.mascotaNombre ?? 'esta mascota'}?',
+                                            style: GoogleFonts.poppins(fontSize: 13),
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.pop(ctx, false),
+                                              child: Text('No',
+                                                  style: GoogleFonts.poppins(color: _grey)),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () => Navigator.pop(ctx, true),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: const Color(0xFFE53935),
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                shape: RoundedRectangleBorder(
+                                                    borderRadius: BorderRadius.circular(10)),
+                                              ),
+                                              child: Text('Sí, cancelar',
+                                                  style: GoogleFonts.poppins(
+                                                      fontWeight: FontWeight.w600)),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmar == true) {
+                                        await ctrl.cancelarSolicitud(s.id);
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(6),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFE53935).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                            color: const Color(0xFFE53935).withValues(alpha: 0.2)),
+                                      ),
+                                      child: const Icon(Icons.close_rounded,
+                                          size: 16, color: Color(0xFFE53935)),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _colorEstado(String estado) {
+    switch (estado) {
+      case 'Pendiente':  return const Color(0xFFF59E0B);
+      case 'Adoptado':   return const Color(0xFF10B981);
+      case 'Rechazada':  return const Color(0xFFE53935);
+      default:           return _grey;
+    }
+  }
+
+  IconData _iconEstado(String estado) {
+    switch (estado) {
+      case 'Pendiente':  return Icons.schedule_rounded;
+      case 'Adoptado':   return Icons.check_circle_rounded;
+      case 'Rechazada':  return Icons.cancel_rounded;
+      default:           return Icons.info_outline_rounded;
+    }
+  }
+
+  String _formatFecha(DateTime fecha) {
+    return '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}';
+  }
 
   void _showPerfilDialog(BuildContext context, MascotaModel mascota) {
     final uid = context.read<AuthController>().currentUser?.id;
@@ -214,34 +659,72 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                                     fontWeight: FontWeight.w700,
                                     color: _orange)),
                           ]),
-                          const SizedBox(height: 6),
-                          if (mascota.propietarioNombre != null)
-                            Row(children: [
-                              const Icon(Icons.badge_outlined,
-                                  size: 13, color: _grey),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(mascota.propietarioNombre!,
-                                    style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: _dark)),
+                          const SizedBox(height: 8),
+                          // Foto + nombre + teléfono en fila
+                          Row(crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                            // Avatar del propietario
+                            Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _orange.withValues(alpha: 0.12),
+                                border: Border.all(
+                                    color: _orange.withValues(alpha: 0.35),
+                                    width: 2),
                               ),
-                            ]),
-                          if (mascota.propietarioTelefono != null &&
-                              mascota.propietarioTelefono!.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Row(children: [
-                              const Icon(Icons.phone_outlined,
-                                  size: 13, color: _grey),
-                              const SizedBox(width: 6),
-                              Text(mascota.propietarioTelefono!,
-                                  style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: _dark)),
-                            ]),
-                          ],
+                              child: ClipOval(
+                                child: (mascota.propietarioFotoUrl != null &&
+                                        mascota.propietarioFotoUrl!.isNotEmpty)
+                                    ? Image.network(
+                                        mascota.propietarioFotoUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const Icon(Icons.person_rounded,
+                                                size: 24, color: _orange))
+                                    : const Icon(Icons.person_rounded,
+                                        size: 24, color: _orange),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (mascota.propietarioNombre != null)
+                                    Row(children: [
+                                      const Icon(Icons.badge_outlined,
+                                          size: 13, color: _grey),
+                                      const SizedBox(width: 5),
+                                      Expanded(
+                                        child: Text(
+                                            mascota.propietarioNombre!,
+                                            style: GoogleFonts.poppins(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: _dark)),
+                                      ),
+                                    ]),
+                                  if (mascota.propietarioTelefono != null &&
+                                      mascota.propietarioTelefono!
+                                          .isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Row(children: [
+                                      const Icon(Icons.phone_outlined,
+                                          size: 13, color: _grey),
+                                      const SizedBox(width: 5),
+                                      Text(mascota.propietarioTelefono!,
+                                          style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: _dark)),
+                                    ]),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ]),
                         ],
                       ),
                     ),
@@ -363,11 +846,48 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                               ),
                             ),
                             const Spacer(),
+                            // Botón mis solicitudes (notificaciones)
+                            Consumer<SolicitudAdopcionController>(
+                              builder: (_, ctrl, __) {
+                                final pendientes = ctrl.misSolicitudes
+                                    .where((s) => s.estado == 'Pendiente')
+                                    .length;
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.notifications_outlined, color: _dark, size: 24),
+                                      tooltip: 'Mis solicitudes',
+                                      onPressed: () => _showMisSolicitudesSheet(context),
+                                    ),
+                                    if (pendientes > 0)
+                                      Positioned(
+                                        top: 6, right: 6,
+                                        child: Container(
+                                          width: 16, height: 16,
+                                          decoration: const BoxDecoration(
+                                            color: _orange,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Center(
+                                            child: Text(
+                                              pendientes > 9 ? '9+' : '$pendientes',
+                                              style: GoogleFonts.poppins(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Colors.white),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
                             IconButton(
-                              icon: const Icon(Icons.list_alt_rounded, color: _dark, size: 24),
-                              tooltip: 'Mis solicitudes',
-                              onPressed: () => Navigator.pushNamed(
-                                  context, '/solicitudes_adopcion'),
+                              icon: const Icon(Icons.favorite_border_rounded, color: _dark, size: 24),
+                              tooltip: 'Mis favoritos',
+                              onPressed: () => _showFavoritosSheet(context),
                             ),
                           ],
                         ),
@@ -726,26 +1246,63 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                         ),
                       )
                     else
-                      GestureDetector(
-                        onTap: () => _showAdoptarDialog(context, mascota),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _orange,
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _orange.withValues(alpha: 0.25),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
+                      Consumer<SolicitudAdopcionController>(
+                        builder: (ctx, soli, _) {
+                          // Verificar si ya envió solicitud para esta mascota
+                          final solicitudExistente = soli.misSolicitudes
+                              .where((s) => s.mascId == mascota.id)
+                              .firstOrNull;
+                          final yaEnvio = solicitudExistente != null;
+                          final estadoSoli = solicitudExistente?.estado ?? '';
+
+                          if (yaEnvio) {
+                            final color = _colorEstado(estadoSoli);
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: color.withValues(alpha: 0.3)),
                               ),
-                            ],
-                          ),
-                          child: Text(
-                            '¡Adoptar!',
-                            style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
-                          ),
-                        ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_iconEstado(estadoSoli), size: 13, color: color),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    estadoSoli == 'Pendiente' ? 'Solicitado' : estadoSoli,
+                                    style: GoogleFonts.poppins(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: color),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+
+                          return GestureDetector(
+                            onTap: () => _showAdoptarDialog(context, mascota),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: _orange,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: _orange.withValues(alpha: 0.25),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                '¡Adoptar!',
+                                style: GoogleFonts.poppins(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.white),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),
@@ -899,6 +1456,8 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                         mascId: mascota.id,
                       );
                       if (!context.mounted) return;
+                      // Recargar solicitudes para actualizar el badge y los botones
+                      ctrl.cargarMisSolicitudes(uid);
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                         content: Row(children: [

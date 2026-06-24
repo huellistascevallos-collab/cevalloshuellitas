@@ -71,6 +71,9 @@ class VeterinarioServicioModel {
   final double? tarifa;      // vete_tarifa
   final String? fotoUrl;     // vete_foto_url
   final bool disponible;
+  final double? latitud;     // vete_latitud
+  final double? longitud;    // vete_longitud
+  final String? direccion;   // vete_direccion
 
   VeterinarioServicioModel({
     required this.id,
@@ -84,6 +87,9 @@ class VeterinarioServicioModel {
     this.tarifa,
     this.fotoUrl,
     this.disponible = true,
+    this.latitud,
+    this.longitud,
+    this.direccion,
   });
 
   factory VeterinarioServicioModel.fromJson(Map<String, dynamic> json) {
@@ -109,6 +115,13 @@ class VeterinarioServicioModel {
           : null,
       fotoUrl: fotoUrl,
       disponible: vet?['vete_disponible'] as bool? ?? true,
+      latitud: vet?['vete_latitud'] != null
+          ? double.tryParse(vet!['vete_latitud'].toString())
+          : null,
+      longitud: vet?['vete_longitud'] != null
+          ? double.tryParse(vet!['vete_longitud'].toString())
+          : null,
+      direccion: vet?['vete_direccion'] as String?,
     );
   }
 }

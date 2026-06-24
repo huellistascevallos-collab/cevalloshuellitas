@@ -4,6 +4,13 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 
+// Top-level handler requerido por flutter_local_notifications para background
+@pragma('vm:entry-point')
+void _onBackgroundNotifTap(NotificationResponse details) {
+  // No podemos navegar aquí (no hay context), solo loggeamos
+  debugPrint('Notificación background tocada: ${details.payload}');
+}
+
 /// Servicio singleton para notificaciones locales del sistema.
 /// Gestiona notificaciones push (fuera de la app) y feedback in-app
 /// (vibración + sonido) mediante flutter_local_notifications.
@@ -15,6 +22,14 @@ class NotificacionLocalService {
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+
+  // Callback para cuando el usuario toca una notificación
+  void Function(String? payload)? _onNotificationTap;
+
+  /// Registra el callback que se ejecuta al tocar una notificación push.
+  void setOnTap(void Function(String? payload) callback) {
+    _onNotificationTap = callback;
+  }
 
   // ── Canales Android ────────────────────────────────────────────────────────
   // Canal de alta prioridad: recordatorios a la hora exacta y citas rechazadas
@@ -48,6 +63,13 @@ class NotificacionLocalService {
         android: androidSettings,
         iOS: iosSettings,
       ),
+      // Al tocar la notificación push abre la app y navega al panel
+      onDidReceiveNotificationResponse: (details) {
+        debugPrint('Notificación tocada: ${details.payload}');
+        // La navegación se maneja en main.dart usando la key del navigator
+        _onNotificationTap?.call(details.payload);
+      },
+      onDidReceiveBackgroundNotificationResponse: _onBackgroundNotifTap,
     );
 
     final androidImpl = _plugin
@@ -94,6 +116,8 @@ class NotificacionLocalService {
   }
 
   // ── Detalles por canal ─────────────────────────────────────────────────────
+  static const _largeIcon = DrawableResourceAndroidBitmap('logohome');
+
   NotificationDetails _detallesUrgente({String? subtext}) => NotificationDetails(
         android: AndroidNotificationDetails(
           _channelUrgente,
@@ -102,6 +126,7 @@ class NotificacionLocalService {
           importance: Importance.max,
           priority: Priority.max,
           icon: '@mipmap/launcher_icon',
+          largeIcon: _largeIcon,
           playSound: true,
           enableVibration: true,
           vibrationPattern: Int64List.fromList([0, 300, 200, 300, 200, 600]),
@@ -129,6 +154,7 @@ class NotificacionLocalService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/launcher_icon',
+          largeIcon: _largeIcon,
           playSound: true,
           enableVibration: true,
           vibrationPattern: Int64List.fromList([0, 200, 100, 200]),
@@ -157,13 +183,14 @@ class NotificacionLocalService {
     required String cuerpo,
     bool urgente = false,
     String? subtext,
+    String? payload,
   }) async {
     if (!_initialized) await init();
     try {
       final detalles = urgente
           ? _detallesUrgente(subtext: subtext)
           : _detallesNormal(subtext: subtext);
-      await _plugin.show(id, titulo, cuerpo, detalles);
+      await _plugin.show(id, titulo, cuerpo, detalles, payload: payload);
     } catch (e) {
       debugPrint('Error al mostrar notificación: $e');
     }

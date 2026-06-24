@@ -3,9 +3,11 @@ enum TipoNotificacion {
   nuevaCita,           // Vet recibe nueva solicitud de cita
   citaConfirmada,      // Usuario: su cita fue confirmada
   citaRechazada,       // Usuario: su cita fue rechazada
+  citaPendiente,       // Usuario: cita enviada esperando respuesta
   recordatorio30min,   // 30 minutos antes de la cita
   recordatorioAhora,   // A la hora exacta de la cita
   solicitudAdopcion,   // Dueño: alguien quiere adoptar su mascota
+  urgencia,            // Veterinario: urgencia crítica entrante
 }
 
 /// Prioridad visual de la notificación
@@ -50,20 +52,24 @@ class NotificacionModel {
 
   // ── Color por tipo ─────────────────────────────────────────────────────────
   static const Map<TipoNotificacion, int> _colorMap = {
-    TipoNotificacion.nuevaCita:          0xFFE58D57,  // naranja
-    TipoNotificacion.citaConfirmada:     0xFF43B89C,  // verde
-    TipoNotificacion.citaRechazada:      0xFFE53935,  // rojo
-    TipoNotificacion.recordatorio30min:  0xFF1CB5C9,  // teal
-    TipoNotificacion.recordatorioAhora:  0xFF7C6FCD,  // purple
-    TipoNotificacion.solicitudAdopcion:  0xFFE58D57,  // naranja
+    TipoNotificacion.nuevaCita:          0xFFE58D57,
+    TipoNotificacion.citaConfirmada:     0xFF43B89C,
+    TipoNotificacion.citaRechazada:      0xFFE53935,
+    TipoNotificacion.citaPendiente:      0xFF1CB5C9,
+    TipoNotificacion.recordatorio30min:  0xFF1CB5C9,
+    TipoNotificacion.recordatorioAhora:  0xFF7C6FCD,
+    TipoNotificacion.solicitudAdopcion:  0xFFE58D57,
+    TipoNotificacion.urgencia:           0xFFB71C1C,
   };
 
   // ── Prioridad por tipo ─────────────────────────────────────────────────────
   static const Map<TipoNotificacion, PrioridadNotificacion> _prioridadMap = {
     TipoNotificacion.recordatorioAhora:  PrioridadNotificacion.alta,
     TipoNotificacion.citaRechazada:      PrioridadNotificacion.alta,
+    TipoNotificacion.urgencia:           PrioridadNotificacion.alta,
     TipoNotificacion.recordatorio30min:  PrioridadNotificacion.media,
     TipoNotificacion.citaConfirmada:     PrioridadNotificacion.media,
+    TipoNotificacion.citaPendiente:      PrioridadNotificacion.baja,
     TipoNotificacion.nuevaCita:          PrioridadNotificacion.baja,
     TipoNotificacion.solicitudAdopcion:  PrioridadNotificacion.media,
   };
@@ -93,12 +99,16 @@ class NotificacionModel {
         return 'Solicitudes';
       case TipoNotificacion.solicitudAdopcion:
         return 'Solicitudes';
+      case TipoNotificacion.citaPendiente:
+        return 'Solicitudes';
       case TipoNotificacion.citaConfirmada:
       case TipoNotificacion.citaRechazada:
         return 'Confirmaciones';
       case TipoNotificacion.recordatorio30min:
       case TipoNotificacion.recordatorioAhora:
         return 'Recordatorios';
+      case TipoNotificacion.urgencia:
+        return 'Urgencias';
     }
   }
 }

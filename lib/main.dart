@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'supabase_config.dart';
 import 'data/services/notificacion_local_service.dart';
+import 'data/services/fcm_service.dart';
 import 'domain/controllers/auth_controller.dart';
 import 'domain/controllers/mascota_controller.dart';
 import 'domain/controllers/cita_controller.dart';
@@ -30,13 +33,51 @@ import 'presentation/screens/usuario/mapa_veterinarios_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Inicializar Firebase (necesario para FCM)
+  // Se captura PlatformException y FirebaseException por si los archivos de
+  // configuración nativos no están presentes o el canal de plataforma falla,
+  // evitando que la app crashee; FCM quedará deshabilitado en ese caso.
+  bool firebaseDisponible = false;
+  try {
+    await Firebase.initializeApp();
+    firebaseDisponible = true;
+  } on PlatformException catch (e) {
+    debugPrint('Firebase no pudo inicializarse (PlatformException): $e');
+  } on FirebaseException catch (e) {
+    debugPrint('Firebase no pudo inicializarse (FirebaseException): $e');
+  } catch (e) {
+    debugPrint('Firebase error inesperado: $e');
+  }
+
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
 
-  // Inicializar servicio de notificaciones locales (fuera de la app)
+  // Inicializar notificaciones locales (vibración, recordatorios)
   await NotificacionLocalService.instance.init();
+
+  // Inicializar FCM solo si Firebase se inicializó correctamente
+  if (firebaseDisponible) {
+    await FcmService.instance.init();
+  } else {
+    debugPrint('FCM deshabilitado: Firebase no disponible.');
+  }
+
+  // Registrar handler: al tocar una push notification abre el home
+  // (el usuario verá el badge y podrá abrir el panel de notificaciones)
+  NotificacionLocalService.instance.setOnTap((payload) {
+    debugPrint('Push tocada con payload: $payload');
+    // La app ya está abierta o se abre — el navigatorKey permite navegar
+    final ctx = MyApp.navigatorKey.currentContext;
+    if (ctx == null) return;
+    // Navegar según el tipo de notificación
+    if (payload != null && payload.startsWith('adopcion:')) {
+      Navigator.of(ctx).pushNamedAndRemoveUntil('/home', (r) => false);
+    } else if (payload != null && payload.startsWith('cita:')) {
+      Navigator.of(ctx).pushNamedAndRemoveUntil('/vet_home', (r) => false);
+    }
+  });
 
   runApp(
     MultiProvider(
@@ -56,11 +97,15 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Huellitas',
       debugShowCheckedModeBanner: false,
+      navigatorKey: MyApp.navigatorKey,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B35)),
         textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),

@@ -26,12 +26,24 @@ class MascotaService {
         .toList();
   }
 
+  /// Obtiene las [limite] mascotas más recientemente registradas, ordenadas por fecha de creación.
+  Future<List<MascotaModel>> obtenerMascotasRecientes({int limite = 5}) async {
+    final response = await _client
+        .from('mascotas')
+        .select()
+        .order('created_at', ascending: false)
+        .limit(limite);
+    return (response as List<dynamic>)
+        .map((e) => MascotaModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Obtiene todas las mascotas que están en estado "para adoptar" en la plataforma.
-  /// Incluye join con usuarios para mostrar nombre y teléfono del propietario.
+  /// Incluye join con usuarios para mostrar nombre, teléfono y foto del propietario.
   Future<List<MascotaModel>> obtenerMascotasParaAdopcion() async {
     final response = await _client
         .from('mascotas')
-        .select('*, usuarios(usua_nombre, usua_telefono)')
+        .select('*, usuarios(usua_nombre, usua_telefono, usua_foto_url)')
         .eq('masc_estado', 'para adoptar');
 
     return (response as List<dynamic>)
