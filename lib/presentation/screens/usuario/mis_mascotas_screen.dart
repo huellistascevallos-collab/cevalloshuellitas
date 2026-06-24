@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../data/models/mascota_model.dart';
+import '../../../presentation/widgets/safe_network_image.dart';
 
 // ─── Paleta de colores Premium de la imagen ───────────────────────────────────
 const _teal = Color(0xFF2FA3A3);       // Botón FAB, botones de acción y guardado
@@ -285,12 +286,13 @@ class _MisMascotasScreenState extends State<MisMascotasScreen> {
                 color: mascota.color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(mascota.fotoUrl!, fit: BoxFit.cover),
-                    )
-                  : Icon(mascota.icon, size: 36, color: mascota.color),
+              child: SafeNetworkImage(
+                url: mascota.fotoUrl,
+                borderRadius: BorderRadius.circular(16),
+                fallbackIcon: mascota.icon,
+                fallbackColor: mascota.color,
+                fallbackIconSize: 36,
+              ),
             ),
             const SizedBox(width: 14),
             // Información principal
@@ -687,10 +689,11 @@ class _AddMascotaSheetState extends State<_AddMascotaSheet> {
                         )
                       : (widget.mascota?.fotoUrl != null &&
                               widget.mascota!.fotoUrl!.isNotEmpty)
-                          ? ClipRRect(
+                          ? SafeNetworkImage(
+                              url: widget.mascota!.fotoUrl,
                               borderRadius: BorderRadius.circular(14),
-                              child: Image.network(widget.mascota!.fotoUrl!,
-                                  fit: BoxFit.cover),
+                              fallbackIcon: Icons.pets_rounded,
+                              fallbackColor: const Color(0xFF1CB5C9),
                             )
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,

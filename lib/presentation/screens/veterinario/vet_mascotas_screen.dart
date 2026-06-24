@@ -8,6 +8,7 @@ import '../../../data/models/mascota_model.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
+import '../../../presentation/widgets/safe_network_image.dart';
 
 class VetMascotasScreen extends StatefulWidget {
   const VetMascotasScreen({super.key});
@@ -300,11 +301,13 @@ class _VetMascotasScreenState extends State<VetMascotasScreen>
               color: m.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.network(m.fotoUrl!, fit: BoxFit.cover))
-                : Icon(m.icon, size: 34, color: m.color),
+            child: SafeNetworkImage(
+              url: m.fotoUrl,
+              borderRadius: BorderRadius.circular(14),
+              fallbackIcon: m.icon,
+              fallbackColor: m.color,
+              fallbackIconSize: 34,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -598,10 +601,12 @@ class _VetAddMascotaSheetState extends State<_VetAddMascotaSheet> {
                           child: Image.file(_imagenFisica!, fit: BoxFit.cover))
                       : (widget.mascota?.fotoUrl != null &&
                               widget.mascota!.fotoUrl!.isNotEmpty)
-                          ? ClipRRect(
+                          ? SafeNetworkImage(
+                              url: widget.mascota!.fotoUrl,
                               borderRadius: BorderRadius.circular(14),
-                              child: Image.network(
-                                  widget.mascota!.fotoUrl!, fit: BoxFit.cover))
+                              fallbackIcon: Icons.pets_rounded,
+                              fallbackColor: const Color(0xFF1CB5C9),
+                            )
                           : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -775,11 +780,13 @@ class _PerfilMascotaSheetState extends State<_PerfilMascotaSheet> {
               decoration: BoxDecoration(
                   color: m.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(16)),
-              child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(m.fotoUrl!, fit: BoxFit.cover))
-                  : Icon(m.icon, size: 38, color: m.color),
+              child: SafeNetworkImage(
+                url: m.fotoUrl,
+                borderRadius: BorderRadius.circular(16),
+                fallbackIcon: m.icon,
+                fallbackColor: m.color,
+                fallbackIconSize: 38,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(

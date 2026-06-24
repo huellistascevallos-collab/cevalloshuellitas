@@ -67,7 +67,7 @@ class MascotaService {
         .from('mascotas')
         .update(mascota.toUpdateJson())
         .eq('masc_id', mascota.id)
-        .select()
+        .select('*, usuarios(usua_nombre, usua_telefono, usua_foto_url)')
         .single();
     return MascotaModel.fromJson(response);
   }

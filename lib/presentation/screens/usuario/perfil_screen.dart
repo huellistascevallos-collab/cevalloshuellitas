@@ -836,15 +836,15 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       _telefonoController.text.trim(),
     );
 
+    if (!mounted) return; // widget puede haberse desmontado durante el await
+
     if (!okPerfil) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(authController.errorMessage ?? 'Error al actualizar perfil'),
-          backgroundColor: const Color(0xFFE53935),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(authController.errorMessage ?? 'Error al actualizar perfil'),
+        backgroundColor: const Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
       return;
     }
 

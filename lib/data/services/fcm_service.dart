@@ -1,16 +1,43 @@
+import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'notificacion_local_service.dart';
 
-/// Handler de mensajes en segundo plano (debe ser top-level)
+/// Handler de mensajes en segundo plano (debe ser top-level).
+///
+/// Se ejecuta en un isolate separado, por eso se inicializa
+/// firebase_core y flutter_local_notifications aquí mismo.
+/// Solo es necesario para mensajes **data-only** (sin campo `notification`).
+/// Cuando el payload incluye `notification`, FCM/Android lo muestra
+/// automáticamente sin pasar por este handler.
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  debugPrint('FCM background: ${message.notification?.title}');
-  // flutter_local_notifications ya muestra la notificación del sistema
-  // automáticamente cuando la app está en background gracias al canal
-  // configurado en NotificacionLocalService.
+  // Firebase puede no estar inicializado en el isolate de background
+  await Firebase.initializeApp();
+
+  debugPrint('FCM background: ${message.notification?.title ?? message.data['titulo']}');
+
+  // Si el mensaje ya trae objeto notification, el sistema Android lo muestra
+  // automáticamente: no hacemos nada más para evitar duplicados.
+  if (message.notification != null) return;
+
+  // Mensaje data-only: mostramos la notificación manualmente.
+  final titulo = message.data['titulo'] ?? message.data['title'] ?? '🐾 Huellitas';
+  final cuerpo = message.data['cuerpo'] ?? message.data['body'] ?? '';
+  if (cuerpo.isEmpty) return;
+
+  await NotificacionLocalService.instance.init();
+  await NotificacionLocalService.instance.mostrarInmediata(
+    id: NotificacionLocalService.idDesde(
+        message.messageId ?? message.data['id'] ?? titulo),
+    titulo: titulo,
+    cuerpo: cuerpo,
+    urgente: message.data['urgente'] == 'true',
+    subtext: message.data['mascota'],
+    payload: message.data['payload'],
+  );
 }
 
 /// Servicio que gestiona Firebase Cloud Messaging.
@@ -22,6 +49,7 @@ class FcmService {
   static final FcmService instance = FcmService._();
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  StreamSubscription<String>? _tokenRefreshSubscription;
 
   /// Inicializa FCM: permisos, token, y listeners.
   /// Llama esto una vez en main() después de inicializar Firebase.
@@ -86,7 +114,8 @@ class FcmService {
       debugPrint('FCM token guardado en Supabase para $userId');
 
       // Escuchar renovación de token y actualizarlo en Supabase
-      _fcm.onTokenRefresh.listen((nuevoToken) async {
+      await _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = _fcm.onTokenRefresh.listen((nuevoToken) async {
         await Supabase.instance.client
             .from('usuarios')
             .update({'fcm_token': nuevoToken})
@@ -107,6 +136,9 @@ class FcmService {
       return;
     }
     try {
+      await _tokenRefreshSubscription?.cancel();
+      _tokenRefreshSubscription = null;
+
       await Supabase.instance.client
           .from('usuarios')
           .update({'fcm_token': null})
@@ -123,23 +155,28 @@ class FcmService {
   /// Cuando llega un mensaje con la app en PRIMER PLANO, lo mostramos
   /// como notificación local (FCM no la muestra automáticamente en foreground).
   Future<void> _onMensajePrimerPlano(RemoteMessage message) async {
-    debugPrint('FCM foreground: ${message.notification?.title}');
+    debugPrint('FCM foreground: ${message.notification?.title ?? message.data['titulo']}');
+
+    // Extraer título y cuerpo: primero del objeto notification, luego del data
     final notif = message.notification;
-    if (notif == null) return;
+    final titulo = notif?.title ?? message.data['titulo'] ?? message.data['title'] ?? '🐾 Huellitas';
+    final cuerpo = notif?.body  ?? message.data['cuerpo'] ?? message.data['body'] ?? '';
+    if (cuerpo.isEmpty && notif == null) return;
 
     final esAdopcion = message.data['tipo'] == 'adopcion';
+    final urgente   = message.data['urgente'] == 'true';
 
     await NotificacionLocalService.instance.mostrarInmediata(
-      id: NotificacionLocalService.idDesde(message.messageId ?? notif.title ?? ''),
-      titulo: notif.title ?? '🐾 Huellitas',
-      cuerpo: notif.body ?? '',
-      urgente: false,
+      id: NotificacionLocalService.idDesde(message.messageId ?? titulo),
+      titulo: titulo,
+      cuerpo: cuerpo,
+      urgente: urgente,
       subtext: message.data['mascota'],
       payload: message.data['payload'],
     );
 
     // Vibración según tipo
-    await NotificacionLocalService.instance.feedbackInApp(urgente: !esAdopcion);
+    await NotificacionLocalService.instance.feedbackInApp(urgente: !esAdopcion && urgente);
   }
 
   /// Cuando el usuario toca la notificación desde background/terminado.

@@ -88,39 +88,22 @@ class SolicitudAdopcionController extends ChangeNotifier {
 
   // ─── Lógica central de sincronización ────────────────────────────────────
 
-  /// Consulta Supabase y procesa solicitudes pendientes nuevas.
-  /// [dispararPush] = false en la carga inicial, true en polling y Realtime.
   Future<void> _sincronizarSolicitudesPendientes(
       String duenioId, {required bool dispararPush}) async {
     try {
-      // Obtener mascotas del dueño
-      final mascotasRaw = await Supabase.instance.client
-          .from('mascotas')
-          .select('masc_id')
-          .eq('usua_id', duenioId);
-
-      final mascIds = (mascotasRaw as List)
-          .map((m) => m['masc_id'].toString())
-          .toList();
-      if (mascIds.isEmpty) return;
-
-      // Solicitudes pendientes con datos completos del solicitante
+      // Solicitudes pendientes con datos completos del solicitante, filtrado por dueño de la mascota
       final rows = await Supabase.instance.client
           .from('solicitudes_adopcion')
           .select(
-              '*, mascotas(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), '
+              '*, mascotas!inner(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id), '
               'usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)')
-          .inFilter('masc_id', mascIds)
+          .eq('mascotas.usua_id', duenioId)
           .eq('soli_estado', 'Pendiente')
           .order('soli_fecha', ascending: false);
 
       bool hayNuevas = false;
 
       for (final row in rows) {
-        // Verificar que la mascota pertenece a este dueño
-        final propId = (row['mascotas'] as Map?)?['usua_id']?.toString() ?? '';
-        if (propId != duenioId) continue;
-
         final model = SolicitudAdopcionModel.fromJson(row);
 
         // Agregar a solicitudesRecibidas si no existe

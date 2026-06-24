@@ -10,6 +10,7 @@ import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/solicitud_adopcion_controller.dart';
 import '../../../data/models/mascota_model.dart';
 import '../../../presentation/widgets/notificaciones_sheet.dart';
+import '../../../presentation/widgets/safe_network_image.dart';
 
 // Constante de color naranja para adopciones
 const _adoptOrange = Color(0xFFE58D57);
@@ -202,16 +203,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     color: const Color(0xFFF3F9FA),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: (m.fotoUrl != null &&
-                                          m.fotoUrl!.isNotEmpty)
-                                      ? ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: Image.network(
-                                              m.fotoUrl!,
-                                              fit: BoxFit.cover))
-                                      : const Icon(Icons.pets_rounded,
-                                          color: _teal, size: 28),
+                                  child: SafeNetworkImage(
+                                    url: m.fotoUrl,
+                                    borderRadius: BorderRadius.circular(12),
+                                    fallbackIcon: Icons.pets_rounded,
+                                    fallbackColor: _teal,
+                                    fallbackIconSize: 28,
+                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 // Info
@@ -420,11 +418,13 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: BoxDecoration(
                   color: const Color(0xFFF3F9FA),
                   borderRadius: BorderRadius.circular(12)),
-              child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.network(mascota.fotoUrl!, fit: BoxFit.cover))
-                  : const Icon(Icons.pets_rounded, color: _teal, size: 26),
+              child: SafeNetworkImage(
+                url: mascota.fotoUrl,
+                borderRadius: BorderRadius.circular(12),
+                fallbackIcon: Icons.pets_rounded,
+                fallbackColor: _teal,
+                fallbackIconSize: 26,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1004,18 +1004,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: const Color(0xFFF3F9FA),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: (mascota.fotoUrl != null && mascota.fotoUrl!.isNotEmpty)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
-                      child: Image.network(
-                        mascota.fotoUrl!,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                      ),
-                    )
-                  : const Center(
-                      child: Icon(Icons.pets_rounded, size: 48, color: _teal),
-                    ),
+              child: SafeNetworkImage(
+                url: mascota.fotoUrl,
+                borderRadius: BorderRadius.circular(16),
+                fallbackIcon: Icons.pets_rounded,
+                fallbackColor: _teal,
+                fallbackIconSize: 48,
+                width: double.infinity,
+              ),
             ),
           ),
           Expanded(
@@ -1234,14 +1230,13 @@ class _PerfilMascotaDialogState extends State<_PerfilMascotaDialog> {
                       color: const Color(0xFFF3F9FA),
                       borderRadius: BorderRadius.circular(18),
                     ),
-                    child: (mascota.fotoUrl != null &&
-                            mascota.fotoUrl!.isNotEmpty)
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: Image.network(mascota.fotoUrl!,
-                                fit: BoxFit.cover))
-                        : const Icon(Icons.pets_rounded,
-                            size: 80, color: _teal),
+                    child: SafeNetworkImage(
+                      url: mascota.fotoUrl,
+                      borderRadius: BorderRadius.circular(18),
+                      fallbackIcon: Icons.pets_rounded,
+                      fallbackColor: _teal,
+                      fallbackIconSize: 80,
+                    ),
                   ),
                   Positioned(
                     top: 8,

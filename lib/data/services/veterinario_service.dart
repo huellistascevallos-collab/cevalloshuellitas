@@ -44,7 +44,7 @@ class VeterinarioService {
     final response = await _client
         .from('veterinarios')
         .insert(vet.toInsertJson())
-        .select()
+        .select('*, usuarios(usua_nombre, usua_foto_url)')
         .single();
     return VeterinarioModel.fromJson(response);
   }
@@ -56,7 +56,7 @@ class VeterinarioService {
         .from('veterinarios')
         .update(vet.toUpdateJson())
         .eq('vete_id', vet.id)
-        .select()
+        .select('*, usuarios(usua_nombre, usua_foto_url)')
         .single();
     return VeterinarioModel.fromJson(response);
   }

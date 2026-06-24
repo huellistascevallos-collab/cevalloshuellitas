@@ -95,19 +95,14 @@ class SolicitudAdopcionService {
   /// Todas las solicitudes recibidas para mascotas de un dueño.
   Future<List<SolicitudAdopcionModel>> obtenerPorDueno(String duenioId) async {
     try {
-      // Primero obtenemos los IDs de mascotas del dueño
-      final mascotas = await _client
-          .from('mascotas')
-          .select('masc_id')
-          .eq('usua_id', duenioId);
-
-      final ids = (mascotas as List).map((m) => m['masc_id'].toString()).toList();
-      if (ids.isEmpty) return [];
-
       final response = await _client
           .from('solicitudes_adopcion')
-          .select(_selectJoin)
-          .inFilter('masc_id', ids)
+          .select('''
+            *,
+            mascotas!inner(masc_nombre, masc_especie, masc_raza, masc_foto_url, usua_id),
+            usuarios(usua_nombre, usua_correo, usua_telefono, usua_foto_url)
+          ''')
+          .eq('mascotas.usua_id', duenioId)
           .order('soli_fecha', ascending: false);
 
       return (response as List)

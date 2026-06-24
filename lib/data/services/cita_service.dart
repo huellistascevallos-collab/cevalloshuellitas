@@ -179,7 +179,7 @@ class CitaService {
           if (receta != null) 'cita_receta': receta,
         })
         .eq('cita_id', citaId)
-        .select()
+        .select(_selectConJoin)
         .single();
 
     // Guardar en historial_medico si hay contenido clínico
@@ -211,7 +211,7 @@ class CitaService {
         .from('citas')
         .update({'cita_estado': nuevoEstado})
         .eq('cita_id', citaId)
-        .select()
+        .select(_selectConJoin)
         .single();
     return CitaModel.fromJson(response);
   }

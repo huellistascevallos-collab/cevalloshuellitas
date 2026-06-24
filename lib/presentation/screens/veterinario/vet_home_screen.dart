@@ -8,6 +8,7 @@ import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/veterinario_controller.dart';
 import '../../../domain/controllers/solicitud_adopcion_controller.dart';
 import '../../../presentation/widgets/notificaciones_sheet.dart';
+import '../../../presentation/widgets/safe_network_image.dart';
 import 'detalle_cita_screen.dart';
 // ─── Paleta verde veterinario ─────────────────────────────────────────────────
 const _vetGreen = Color(0xFF4A9B7F);       // Acento principal verde
@@ -537,13 +538,13 @@ class _VetHomeScreenState extends State<VetHomeScreen>
               color: m.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: (m.fotoUrl != null && m.fotoUrl!.isNotEmpty)
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child:
-                        Image.network(m.fotoUrl!, fit: BoxFit.cover),
-                  )
-                : Icon(m.icon, color: m.color, size: 26),
+            child: SafeNetworkImage(
+              url: m.fotoUrl,
+              borderRadius: BorderRadius.circular(12),
+              fallbackIcon: m.icon,
+              fallbackColor: m.color,
+              fallbackIconSize: 26,
+            ),
           ),
           const SizedBox(width: 12),
 
