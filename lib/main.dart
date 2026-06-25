@@ -134,22 +134,101 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/admin_home': (context) => const AdminHomeScreen(),
-        '/vet_home': (context) => const VetHomeScreen(),
-        '/mis_mascotas': (context) => const MisMascotasScreen(),
+        '/home': (context) => _RouteGuard(
+              rolesPermitidos: const ['usuario'],
+              child: const HomeScreen(),
+            ),
+        '/admin_home': (context) => _RouteGuard(
+              rolesPermitidos: const ['administrador'],
+              child: const AdminHomeScreen(),
+            ),
+        '/vet_home': (context) => _RouteGuard(
+              rolesPermitidos: const ['veterinario'],
+              child: const VetHomeScreen(),
+            ),
+        '/mis_mascotas': (context) => _RouteGuard(
+              rolesPermitidos: const ['usuario'],
+              child: const MisMascotasScreen(),
+            ),
         '/adopciones': (context) => const AdopcionesScreen(),
-        '/solicitudes_adopcion': (context) => const SolicitudesAdopcionScreen(),
+        '/solicitudes_adopcion': (context) => _RouteGuard(
+              rolesPermitidos: const ['usuario'],
+              child: const SolicitudesAdopcionScreen(),
+            ),
         '/servicios': (context) => const ServiciosScreen(),
-
-        '/urgencias': (context) => const UrgenciasScreen(),
-        '/urgencias_usuario': (context) => const UrgenciasUsuarioScreen(),
-        '/perfil': (context) => const PerfilScreen(),
-        '/vet_citas': (context) => const VetCitasScreen(),
-        '/vet_mascotas': (context) => const VetMascotasScreen(),
-        '/vet_perfil': (context) => const VetPerfilScreen(),
+        '/urgencias': (context) => _RouteGuard(
+              rolesPermitidos: const ['veterinario'],
+              child: const UrgenciasScreen(),
+            ),
+        '/urgencias_usuario': (context) => _RouteGuard(
+              rolesPermitidos: const ['usuario'],
+              child: const UrgenciasUsuarioScreen(),
+            ),
+        '/perfil': (context) => _RouteGuard(
+              rolesPermitidos: const ['usuario'],
+              child: const PerfilScreen(),
+            ),
+        '/vet_citas': (context) => _RouteGuard(
+              rolesPermitidos: const ['veterinario'],
+              child: const VetCitasScreen(),
+            ),
+        '/vet_mascotas': (context) => _RouteGuard(
+              rolesPermitidos: const ['veterinario'],
+              child: const VetMascotasScreen(),
+            ),
+        '/vet_perfil': (context) => _RouteGuard(
+              rolesPermitidos: const ['veterinario'],
+              child: const VetPerfilScreen(),
+            ),
         '/mapa_veterinarios': (context) => const MapaVeterinariosScreen(),
       },
     );
+  }
+}
+
+/// Guard de rutas en cliente.
+/// Verifica que el usuario autenticado tenga uno de los [rolesPermitidos]
+/// antes de renderizar el [child]. Si no está autenticado redirige a /login;
+/// si tiene un rol diferente redirige a la pantalla correcta para su rol.
+class _RouteGuard extends StatelessWidget {
+  final List<String> rolesPermitidos;
+  final Widget child;
+
+  const _RouteGuard({
+    required this.rolesPermitidos,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+
+    // Mientras se restaura la sesión, mostrar splash
+    if (auth.isInitializing) return const SplashScreen();
+
+    // Sin sesión → login
+    if (!auth.isAuthenticated || auth.currentUser == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/login');
+      });
+      return const SplashScreen();
+    }
+
+    final rol = auth.currentUser!.rol;
+
+    // Rol permitido → renderizar pantalla
+    if (rolesPermitidos.contains(rol)) return child;
+
+    // Rol incorrecto → redirigir a la pantalla correspondiente
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (rol == 'administrador') {
+        Navigator.pushReplacementNamed(context, '/admin_home');
+      } else if (rol == 'veterinario') {
+        Navigator.pushReplacementNamed(context, '/vet_home');
+      } else {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    });
+    return const SplashScreen();
   }
 }

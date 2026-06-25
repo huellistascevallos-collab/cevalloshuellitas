@@ -13,6 +13,7 @@ import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
 import '../../../domain/controllers/veterinario_controller.dart';
+import 'urgencia_espera_screen.dart';
 
 // ── Paleta ───────────────────────────────────────────────────────────────────
 const _red    = Color(0xFFE53935);
@@ -955,22 +956,21 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
     if (!mounted) return;
 
     if (ok) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Row(children: [
-          const Icon(Icons.emergency_rounded, color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          Expanded(child: Text(
-            _modalidad == 'domicilio'
-                ? '¡Urgencia enviada! El veterinario irá a tu domicilio.'
-                : '¡Urgencia enviada! Dirígete al local con tu mascota.',
-            style: GoogleFonts.poppins(fontSize: 13))),
-        ]),
-        backgroundColor: _red,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ));
+      // Buscar la cita recién creada en la lista del usuario para obtener su ID real
+      final citaCreada = citaCtrl.citasDelUsuario.isNotEmpty
+          ? citaCtrl.citasDelUsuario.first
+          : cita;
+
+      // Navegar a la pantalla de espera (reemplaza la pantalla de urgencias)
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChangeNotifierProvider.value(
+            value: citaCtrl,
+            child: UrgenciaEsperaScreen(cita: citaCreada),
+          ),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(citaCtrl.errorMessage ?? 'Error al reportar la urgencia'),

@@ -26,6 +26,16 @@ class CitaController extends ChangeNotifier {
   // Timers de recordatorio por citaId (30 min y hora exacta)
   final Map<String, Timer> _timers = {};
 
+  /// Última cita de urgencia que recibió respuesta del veterinario.
+  /// La pantalla de espera lo escucha para reaccionar al cambio.
+  CitaModel? _ultimaRespuestaUrgencia;
+  CitaModel? get ultimaRespuestaUrgencia => _ultimaRespuestaUrgencia;
+
+  /// Limpia la última respuesta de urgencia (llamar después de mostrarla).
+  void limpiarRespuestaUrgencia() {
+    _ultimaRespuestaUrgencia = null;
+  }
+
   List<NotificacionModel> get notificaciones =>
       List.unmodifiable(_notificaciones);
   int get totalNotificaciones =>
@@ -335,33 +345,67 @@ class CitaController extends ChangeNotifier {
                       final model = CitaModel.fromJson(full);
                       _actualizarEnListas(model);
 
+                      // Detectar si la cita era una urgencia
+                      final esUrgencia =
+                          model.motivo.startsWith('[URGENCIA:');
+
                       if (nuevoEstado == 'confirmada') {
-                        _agregarNotificacion(NotificacionModel(
-                          id: 'confirmada_${model.id}',
-                          tipo: TipoNotificacion.citaConfirmada,
-                          titulo: '¡Cita confirmada! 🎉',
-                          cuerpo:
-                              'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} a las ${model.hora} fue confirmada.',
-                          citaId: model.id,
-                          mascotaNombre: model.mascotaNombre,
-                          fecha: model.fecha,
-                          hora: model.hora,
-                        ));
-                        // Programar recordatorios 30 min y a la hora
-                        _programarRecordatorios(model, 'usuario');
+                        if (esUrgencia) {
+                          _agregarNotificacion(NotificacionModel(
+                            id: 'urgencia_confirmada_${model.id}',
+                            tipo: TipoNotificacion.urgencia,
+                            titulo: '🚨 ¡Urgencia aceptada!',
+                            cuerpo:
+                                'El veterinario aceptó tu emergencia de ${model.mascotaNombre}. Está en camino.',
+                            citaId: model.id,
+                            mascotaNombre: model.mascotaNombre,
+                            fecha: model.fecha,
+                            hora: model.hora,
+                          ));
+                        } else {
+                          _agregarNotificacion(NotificacionModel(
+                            id: 'confirmada_${model.id}',
+                            tipo: TipoNotificacion.citaConfirmada,
+                            titulo: '¡Cita confirmada! 🎉',
+                            cuerpo:
+                                'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} a las ${model.hora} fue confirmada.',
+                            citaId: model.id,
+                            mascotaNombre: model.mascotaNombre,
+                            fecha: model.fecha,
+                            hora: model.hora,
+                          ));
+                          // Recordatorios solo para citas normales
+                          _programarRecordatorios(model, 'usuario');
+                        }
                       } else {
-                        _agregarNotificacion(NotificacionModel(
-                          id: 'rechazada_${model.id}',
-                          tipo: TipoNotificacion.citaRechazada,
-                          titulo: 'Cita rechazada',
-                          cuerpo:
-                              'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} no pudo ser agendada.',
-                          citaId: model.id,
-                          mascotaNombre: model.mascotaNombre,
-                          fecha: model.fecha,
-                          hora: model.hora,
-                        ));
+                        if (esUrgencia) {
+                          _agregarNotificacion(NotificacionModel(
+                            id: 'urgencia_rechazada_${model.id}',
+                            tipo: TipoNotificacion.citaRechazada,
+                            titulo: '❌ Urgencia rechazada',
+                            cuerpo:
+                                'El veterinario no puede atender la emergencia de ${model.mascotaNombre}. Intenta con otro veterinario.',
+                            citaId: model.id,
+                            mascotaNombre: model.mascotaNombre,
+                            fecha: model.fecha,
+                            hora: model.hora,
+                          ));
+                        } else {
+                          _agregarNotificacion(NotificacionModel(
+                            id: 'rechazada_${model.id}',
+                            tipo: TipoNotificacion.citaRechazada,
+                            titulo: 'Cita rechazada',
+                            cuerpo:
+                                'Tu cita para ${model.mascotaNombre} el ${model.fecha.split('-').reversed.join('/')} no pudo ser agendada.',
+                            citaId: model.id,
+                            mascotaNombre: model.mascotaNombre,
+                            fecha: model.fecha,
+                            hora: model.hora,
+                          ));
+                        }
                       }
+                      // Notificar a la pantalla de espera de urgencias
+                      _ultimaRespuestaUrgencia = model;
                       notifyListeners();
                     } catch (e) {
                       debugPrint('Error realtime UPDATE (usuario): $e');

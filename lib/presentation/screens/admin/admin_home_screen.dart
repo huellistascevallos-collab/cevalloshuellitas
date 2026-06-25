@@ -5,6 +5,10 @@ import '../../../domain/controllers/admin_controller.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import 'admin_usuarios_screen.dart';
 import 'admin_veterinarios_screen.dart';
+import 'admin_citas_screen.dart';
+import 'admin_mascotas_screen.dart';
+import 'admin_adopciones_screen.dart';
+import 'admin_solicitudes_rol_screen.dart';
 
 // ── Paleta administrador ──────────────────────────────────────────────────────
 const _adminBlue   = Color(0xFF1A73E8);
@@ -130,12 +134,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                             ),
                           )
                         : GridView.count(
-                            crossAxisCount: 2,
+                            crossAxisCount: 3,
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.7,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                            childAspectRatio: 1.1,
                             children: [
                               _StatCard(
                                 label: 'Usuarios',
@@ -161,6 +165,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                                 icon: Icons.calendar_month_rounded,
                                 color: const Color(0xFF7C6FCD),
                               ),
+                              _StatCard(
+                                label: 'Adopciones',
+                                value: '${stats['adopciones'] ?? 0}',
+                                icon: Icons.volunteer_activism_rounded,
+                                color: const Color(0xFFE91E8C),
+                              ),
                             ],
                           ),
                   ],
@@ -185,8 +195,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       icon: Icons.people_alt_rounded,
                       color: const Color(0xFF1A73E8),
                       titulo: 'Usuarios',
-                      subtitulo:
-                          '${stats['usuarios'] ?? 0} usuarios registrados',
+                      subtitulo: '${stats['usuarios'] ?? 0} usuarios registrados',
+                      badge: 0,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -204,12 +214,81 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       titulo: 'Veterinarios',
                       subtitulo:
                           '${stats['veterinarios'] ?? 0} veterinarios registrados',
+                      badge: 0,
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => ChangeNotifierProvider.value(
                             value: context.read<AdminController>(),
                             child: const AdminVeterinariosScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _GestionCard(
+                      icon: Icons.badge_rounded,
+                      color: const Color(0xFF7C6FCD),
+                      titulo: 'Solicitudes de Veterinario',
+                      subtitulo: 'Aprobar o rechazar solicitudes de rol',
+                      badge: admin.solicitudesRolPendientes,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangeNotifierProvider.value(
+                            value: context.read<AdminController>(),
+                            child: const AdminSolicitudesRolScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _GestionCard(
+                      icon: Icons.pets_rounded,
+                      color: const Color(0xFFE58D57),
+                      titulo: 'Mascotas',
+                      subtitulo: '${stats['mascotas'] ?? 0} mascotas registradas',
+                      badge: 0,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangeNotifierProvider.value(
+                            value: context.read<AdminController>(),
+                            child: const AdminMascotasScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _GestionCard(
+                      icon: Icons.calendar_month_rounded,
+                      color: const Color(0xFF7C6FCD),
+                      titulo: 'Citas',
+                      subtitulo: '${stats['citas'] ?? 0} citas en total',
+                      badge: 0,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangeNotifierProvider.value(
+                            value: context.read<AdminController>(),
+                            child: const AdminCitasScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _GestionCard(
+                      icon: Icons.volunteer_activism_rounded,
+                      color: const Color(0xFFE91E8C),
+                      titulo: 'Adopciones',
+                      subtitulo: '${stats['adopciones'] ?? 0} solicitudes de adopción',
+                      badge: 0,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ChangeNotifierProvider.value(
+                            value: context.read<AdminController>(),
+                            child: const AdminAdopcionesScreen(),
                           ),
                         ),
                       ),
@@ -243,7 +322,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -255,35 +334,29 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(value,
-                    style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: _adminDark)),
-                Text(label,
-                    style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        color: _adminGrey,
-                        fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
+          const SizedBox(height: 8),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: _adminDark)),
+          Text(label,
+              style: GoogleFonts.poppins(
+                  fontSize: 10,
+                  color: _adminGrey,
+                  fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center),
         ],
       ),
     );
@@ -295,6 +368,7 @@ class _GestionCard extends StatelessWidget {
   final Color color;
   final String titulo;
   final String subtitulo;
+  final int badge;
   final VoidCallback onTap;
 
   const _GestionCard({
@@ -302,6 +376,7 @@ class _GestionCard extends StatelessWidget {
     required this.color,
     required this.titulo,
     required this.subtitulo,
+    required this.badge,
     required this.onTap,
   });
 
@@ -324,14 +399,34 @@ class _GestionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 26),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color, size: 26),
+                ),
+                if (badge > 0)
+                  Positioned(
+                    top: -6,
+                    right: -6,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: const BoxDecoration(
+                          color: Color(0xFFE53935), shape: BoxShape.circle),
+                      child: Text('$badge',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(width: 16),
             Expanded(

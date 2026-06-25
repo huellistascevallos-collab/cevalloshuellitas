@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
+import '../../../data/services/solicitud_rol_service.dart';
 import '../shared/historial_citas_screen.dart';
 
 // ─── Paleta de colores Premium ───────────────────────────
@@ -345,84 +346,6 @@ class _PerfilScreenState extends State<PerfilScreen> {
 }
 
 // ═══════════════════════════════════════════════════
-// Stat Card (Dashboard Style)
-// ═══════════════════════════════════════════════════
-class _StatCard extends StatelessWidget {
-  final String value;
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback? onTap;
-
-  const _StatCard({
-    required this.value,
-    required this.label,
-    required this.icon,
-    required this.color,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.06),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: _dark,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: _grey,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              if (onTap != null) ...[
-                const SizedBox(height: 4),
-                Icon(Icons.arrow_forward_ios_rounded,
-                    size: 10, color: color.withValues(alpha: 0.6)),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════
 // Reusable Section Components
 // ═══════════════════════════════════════════════════
 class _SectionLabel extends StatelessWidget {
@@ -443,27 +366,10 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-class _HeaderAction extends StatelessWidget {
-  final String label;
-  final VoidCallback onTap;
-  const _HeaderAction({required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Text(label,
-          style: GoogleFonts.poppins(
-              fontSize: 12, fontWeight: FontWeight.w600, color: _teal)),
-    );
-  }
-}
-
 class _InfoCard extends StatelessWidget {
   final List<Widget> children;
-  final Widget? headerAction;
 
-  const _InfoCard({required this.children, this.headerAction});
+  const _InfoCard({required this.children});
 
   @override
   Widget build(BuildContext context) {
@@ -480,14 +386,7 @@ class _InfoCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (headerAction != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: Align(alignment: Alignment.centerRight, child: headerAction!),
-            ),
-          ...children,
-        ],
+        children: children,
       ),
     );
   }
@@ -595,26 +494,6 @@ class _OptionTile extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  final IconData icon;
-  final String message;
-  const _EmptyState({required this.icon, required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24),
-      child: Column(children: [
-        Icon(icon, size: 36, color: _grey.withValues(alpha: 0.4)),
-        const SizedBox(height: 8),
-        Text(message,
-            style: GoogleFonts.poppins(fontSize: 13, color: _grey),
-            textAlign: TextAlign.center),
-      ]),
     );
   }
 }
@@ -808,7 +687,6 @@ class _EditProfileSheet extends StatefulWidget {
 class _EditProfileSheetState extends State<_EditProfileSheet> {
   late TextEditingController _nombreController;
   late TextEditingController _telefonoController;
-  late String _rolSeleccionado;
   final _formKey = GlobalKey<FormState>();
 
   @override
@@ -817,7 +695,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     final user = context.read<AuthController>().currentUser;
     _nombreController = TextEditingController(text: user?.nombre ?? '');
     _telefonoController = TextEditingController(text: user?.telefono ?? '');
-    _rolSeleccionado = user?.rol ?? 'usuario';
   }
 
   @override
@@ -836,7 +713,7 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       _telefonoController.text.trim(),
     );
 
-    if (!mounted) return; // widget puede haberse desmontado durante el await
+    if (!mounted) return;
 
     if (!okPerfil) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -846,20 +723,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
       return;
-    }
-
-    final rolActual = authController.currentUser?.rol ?? 'usuario';
-    if (_rolSeleccionado != rolActual) {
-      final okRol = await authController.updateRol(_rolSeleccionado);
-      if (!okRol && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(authController.errorMessage ?? 'Error al cambiar el rol'),
-          backgroundColor: const Color(0xFFE53935),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
-        return;
-      }
     }
 
     if (mounted) {
@@ -875,14 +738,46 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ));
+    }
+  }
 
-      if (_rolSeleccionado != rolActual) {
-        await Future.delayed(const Duration(milliseconds: 350));
-        if (mounted) {
-          Navigator.pushReplacementNamed(
-              context, _rolSeleccionado == 'veterinario' ? '/vet_home' : '/home');
-        }
-      }
+  /// Envía una solicitud al administrador para convertirse en veterinario.
+  Future<void> _solicitarRolVeterinario() async {
+    final authController = context.read<AuthController>();
+    final uid = authController.currentUser?.id;
+    if (uid == null) return;
+
+    try {
+      await SolicitudRolService().enviarSolicitud(uid);
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Row(children: [
+          const Icon(Icons.schedule_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Solicitud enviada. El administrador la revisará pronto.',
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
+          ),
+        ]),
+        backgroundColor: const Color(0xFF7C6FCD),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          e.toString().replaceAll('Exception: ', ''),
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
+        backgroundColor: const Color(0xFFE53935),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ));
     }
   }
 
@@ -890,8 +785,6 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
   Widget build(BuildContext context) {
     final authController = context.watch<AuthController>();
     final user = authController.currentUser;
-    final rolActual = user?.rol ?? 'usuario';
-    final rolCambio = _rolSeleccionado != rolActual;
 
     return Container(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -984,66 +877,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                   },
                   decoration: _fieldDeco('Ej. 0999999999', Icons.phone_outlined),
                 ),
-                const SizedBox(height: 16),
-
-                // Tipo de cuenta — radio cards
-                _fieldLabel('Tipo de cuenta'),
-                const SizedBox(height: 6),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF0FAFB),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFBBEBF0), width: 1.2),
-                  ),
-                  child: Column(children: [
-                    _rolCard(
-                      value: 'usuario',
-                      icon: Icons.pets_rounded,
-                      title: 'Dueño de mascotas',
-                      subtitle: 'Gestiona tus mascotas y agenda citas',
-                      color: _teal,
-                    ),
-                    Divider(height: 1, color: Colors.grey.shade100, indent: 16, endIndent: 16),
-                    _rolCard(
-                      value: 'veterinario',
-                      icon: Icons.medical_services_outlined,
-                      title: 'Veterinario',
-                      subtitle: 'Atiende pacientes y gestiona tu consultorio',
-                      color: const Color(0xFF7C6FCD),
-                    ),
-                  ]),
-                ),
-
-                // Banner aviso cambio de rol
-                if (rolCambio) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF8E1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                          color: const Color(0xFFFBC02D).withValues(alpha: 0.5)),
-                    ),
-                    child: Row(children: [
-                      const Icon(Icons.info_outline_rounded,
-                          color: Color(0xFFF57F17), size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Al guardar serás redirigido al panel de $_rolSeleccionado.',
-                          style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFFF57F17),
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ]),
-                  ),
-                ],
-
                 const SizedBox(height: 24),
 
+                // Guardar datos de perfil
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -1067,64 +903,70 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                                 fontSize: 16, fontWeight: FontWeight.w600)),
                   ),
                 ),
+
+                // Separador
+                const SizedBox(height: 20),
+                Row(children: [
+                  Expanded(child: Divider(color: Colors.grey.shade200)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('¿Eres veterinario?',
+                        style: GoogleFonts.poppins(fontSize: 11, color: _grey)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade200)),
+                ]),
+                const SizedBox(height: 12),
+
+                // Botón solicitar ser veterinario
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF7C6FCD).withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: const Color(0xFF7C6FCD).withValues(alpha: 0.3)),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: _solicitarRolVeterinario,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        child: Row(children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C6FCD).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.medical_services_outlined,
+                                color: Color(0xFF7C6FCD), size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('Solicitar rol de Veterinario',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF7C6FCD))),
+                              Text('El administrador revisará tu solicitud',
+                                  style: GoogleFonts.poppins(
+                                      fontSize: 11, color: _grey)),
+                            ]),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: Color(0xFF7C6FCD), size: 20),
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // Radio card para selección de rol
-  Widget _rolCard({
-    required String value,
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required Color color,
-  }) {
-    final sel = _rolSeleccionado == value;
-    return InkWell(
-      onTap: () => setState(() => _rolSeleccionado = value),
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: sel ? color.withValues(alpha: 0.15) : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon,
-                color: sel ? color : Colors.grey.shade400, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(title,
-                  style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: sel ? _dark : Colors.grey.shade500)),
-              Text(subtitle,
-                  style: GoogleFonts.poppins(
-                      fontSize: 11, color: Colors.grey.shade400)),
-            ]),
-          ),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 20, height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: sel ? color : Colors.grey.shade300,
-                width: sel ? 5 : 2,
-              ),
-            ),
-          ),
-        ]),
       ),
     );
   }
@@ -1239,3 +1081,5 @@ class _HeaderWaveClipper extends CustomClipper<Path> {
   @override
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
+
+
