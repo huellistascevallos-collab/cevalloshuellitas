@@ -766,22 +766,82 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                                   style: GoogleFonts.poppins(color: _teal, fontWeight: FontWeight.w600),
                                 ),
                               )
-                            : ElevatedButton(
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _showAdoptarDialog(context, mascota);
+                            : Consumer<SolicitudAdopcionController>(
+                                builder: (sCtx, soli, _) {
+                                  final solicitudExistente = soli.misSolicitudes
+                                      .where((s) => s.mascId == mascota.id)
+                                      .firstOrNull;
+                                  final esRechazada =
+                                      solicitudExistente?.estado == 'Rechazada';
+                                  final tieneSolicitudActiva =
+                                      solicitudExistente != null &&
+                                          solicitudExistente.estado != 'Rechazada';
+
+                                  if (esRechazada) {
+                                    return OutlinedButton(
+                                      onPressed: null,
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(
+                                            color: const Color(0xFFE53935)
+                                                .withValues(alpha: 0.4)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                      child: Text(
+                                        '🚫 No disponible',
+                                        style: GoogleFonts.poppins(
+                                            color: const Color(0xFFE53935),
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    );
+                                  }
+
+                                  if (tieneSolicitudActiva) {
+                                    return OutlinedButton(
+                                      onPressed: null,
+                                      style: OutlinedButton.styleFrom(
+                                        side: BorderSide(
+                                            color: _orange.withValues(alpha: 0.4)),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12),
+                                      ),
+                                      child: Text(
+                                        '⏳ Solicitado',
+                                        style: GoogleFonts.poppins(
+                                            color: _orange,
+                                            fontWeight: FontWeight.w600),
+                                      ),
+                                    );
+                                  }
+
+                                  return ElevatedButton(
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _showAdoptarDialog(context, mascota);
+                                    },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _orange,
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                    child: Text(
+                                      '¡Adoptar!',
+                                      style: GoogleFonts.poppins(
+                                          fontWeight: FontWeight.w800),
+                                    ),
+                                  );
                                 },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _orange,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                ),
-                                child: Text(
-                                  '¡Adoptar!',
-                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w800),
-                                ),
                               ),
                       ),
                     ],
@@ -1262,6 +1322,7 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
 
                           if (yaEnvio) {
                             final color = _colorEstado(estadoSoli);
+                            final esRechazada = estadoSoli == 'Rechazada';
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
@@ -1275,7 +1336,9 @@ class _AdopcionesScreenState extends State<AdopcionesScreen> {
                                   Icon(_iconEstado(estadoSoli), size: 13, color: color),
                                   const SizedBox(width: 5),
                                   Text(
-                                    estadoSoli == 'Pendiente' ? 'Solicitado' : estadoSoli,
+                                    esRechazada
+                                        ? 'No disponible'
+                                        : (estadoSoli == 'Pendiente' ? 'Solicitado' : estadoSoli),
                                     style: GoogleFonts.poppins(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w700,

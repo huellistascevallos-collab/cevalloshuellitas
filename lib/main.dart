@@ -13,6 +13,8 @@ import 'domain/controllers/cita_controller.dart';
 import 'domain/controllers/veterinario_controller.dart';
 import 'domain/controllers/servicio_controller.dart';
 import 'domain/controllers/solicitud_adopcion_controller.dart';
+import 'domain/controllers/admin_controller.dart';
+import 'presentation/screens/admin/admin_home_screen.dart';
 import 'presentation/screens/login/login_screen.dart';
 import 'presentation/screens/login/register_screen.dart';
 import 'presentation/screens/usuario/home_screen.dart';
@@ -88,6 +90,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => VeterinarioController()),
         ChangeNotifierProvider(create: (_) => ServicioController()),
         ChangeNotifierProvider(create: (_) => SolicitudAdopcionController()),
+        ChangeNotifierProvider(create: (_) => AdminController()),
       ],
       child: const MyApp(),
     ),
@@ -120,6 +123,9 @@ class MyApp extends StatelessWidget {
             if (authController.currentUser?.rol == 'veterinario') {
               return const VetHomeScreen();
             }
+            if (authController.currentUser?.rol == 'administrador') {
+              return const AdminHomeScreen();
+            }
             return const HomeScreen();
           }
           return const LoginScreen();
@@ -129,6 +135,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginScreen(),
         '/register': (context) => const RegisterScreen(),
         '/home': (context) => const HomeScreen(),
+        '/admin_home': (context) => const AdminHomeScreen(),
         '/vet_home': (context) => const VetHomeScreen(),
         '/mis_mascotas': (context) => const MisMascotasScreen(),
         '/adopciones': (context) => const AdopcionesScreen(),

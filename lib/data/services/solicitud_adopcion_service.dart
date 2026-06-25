@@ -29,7 +29,7 @@ class SolicitudAdopcionService {
       throw Exception('No puedes adoptar tu propia mascota.');
     }
 
-    // Verificar si ya existe una solicitud pendiente o aprobada
+    // Verificar si ya existe una solicitud pendiente, aprobada o rechazada
     final existente = await _client
         .from('solicitudes_adopcion')
         .select('soli_id, soli_estado')
@@ -41,6 +41,10 @@ class SolicitudAdopcionService {
       final estado = existente['soli_estado']?.toString() ?? '';
       if (estado == 'Pendiente' || estado == 'Aprobada') {
         throw Exception('Ya tienes una solicitud $estado para esta mascota.');
+      }
+      if (estado == 'Rechazada') {
+        throw Exception(
+            'Tu solicitud fue rechazada. No puedes volver a solicitar la adopción de esta mascota.');
       }
     }
 

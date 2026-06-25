@@ -102,8 +102,11 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ChangeNotifierProvider.value(
-        value: context.read<MascotaController>(),
+      builder: (_) => MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: context.read<MascotaController>()),
+          ChangeNotifierProvider.value(value: context.read<SolicitudAdopcionController>()),
+        ],
         child: DraggableScrollableSheet(
           initialChildSize: 0.6,
           maxChildSize: 0.92,
@@ -272,35 +275,56 @@ class _HomeScreenState extends State<HomeScreen> {
                                         const SizedBox(width: 6),
                                         // Adoptar
                                         Expanded(
-                                          child: GestureDetector(
-                                            onTap: () {
-                                              Navigator.pop(sheetCtx);
-                                              _confirmarAdopcion(homeContext, m);
+                                          child: Consumer<SolicitudAdopcionController>(
+                                            builder: (sCtx, solicCtrl, _) {
+                                              final rechazada = solicCtrl.misSolicitudes
+                                                  .any((s) => s.mascId == m.id && s.estado == 'Rechazada');
+                                              return GestureDetector(
+                                                onTap: rechazada
+                                                    ? null
+                                                    : () {
+                                                        Navigator.pop(sheetCtx);
+                                                        _confirmarAdopcion(homeContext, m);
+                                                      },
+                                                child: Container(
+                                                  padding: const EdgeInsets.symmetric(
+                                                      horizontal: 8, vertical: 5),
+                                                  decoration: BoxDecoration(
+                                                    color: rechazada
+                                                        ? Colors.grey.withValues(alpha: 0.1)
+                                                        : _adoptOrange.withValues(alpha: 0.1),
+                                                    borderRadius: BorderRadius.circular(20),
+                                                    border: Border.all(
+                                                        color: rechazada
+                                                            ? Colors.grey.withValues(alpha: 0.3)
+                                                            : _adoptOrange.withValues(alpha: 0.3)),
+                                                  ),
+                                                  child: Row(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    mainAxisAlignment: MainAxisAlignment.center,
+                                                    children: [
+                                                      Icon(
+                                                        rechazada
+                                                            ? Icons.block_rounded
+                                                            : Icons.volunteer_activism_rounded,
+                                                        color: rechazada ? Colors.grey : _adoptOrange,
+                                                        size: 11,
+                                                      ),
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        rechazada ? 'No disp.' : 'Adoptar',
+                                                        style: GoogleFonts.poppins(
+                                                            fontSize: 10,
+                                                            fontWeight: FontWeight.w600,
+                                                            color: rechazada
+                                                                ? Colors.grey
+                                                                : _adoptOrange),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              );
                                             },
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 5),
-                                              decoration: BoxDecoration(
-                                                color: _adoptOrange.withValues(alpha: 0.1),
-                                                borderRadius: BorderRadius.circular(20),
-                                                border: Border.all(
-                                                    color: _adoptOrange.withValues(alpha: 0.3)),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Icon(Icons.volunteer_activism_rounded,
-                                                      color: _adoptOrange, size: 11),
-                                                  const SizedBox(width: 3),
-                                                  Text('Adoptar',
-                                                      style: GoogleFonts.poppins(
-                                                          fontSize: 10,
-                                                          fontWeight: FontWeight.w600,
-                                                          color: _adoptOrange)),
-                                                ],
-                                              ),
-                                            ),
                                           ),
                                         ),
                                       ]),
@@ -397,6 +421,35 @@ class _HomeScreenState extends State<HomeScreen> {
   void _confirmarAdopcion(BuildContext context, MascotaModel mascota) {
     final uid = context.read<AuthController>().currentUser?.id;
     if (uid == null) return;
+
+    // Bloquear si el usuario ya fue rechazado para esta mascota
+    final solicitudExistente = context
+        .read<SolicitudAdopcionController>()
+        .misSolicitudes
+        .where((s) => s.mascId == mascota.id)
+        .firstOrNull;
+
+    if (solicitudExistente?.estado == 'Rechazada') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(children: [
+            const Icon(Icons.block_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Tu solicitud fue rechazada. No puedes volver a solicitar la adopción de ${mascota.nombre}.',
+                style: GoogleFonts.poppins(fontSize: 13),
+              ),
+            ),
+          ]),
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
 
     showDialog(
       context: context,
