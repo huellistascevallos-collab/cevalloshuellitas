@@ -12,6 +12,7 @@ const _green = Color(0xFF0E9F6E);
 const _red = Color(0xFFE53935);
 const _purple = Color(0xFF7C6FCD);
 const _orange = Color(0xFFE58D57);
+const _headerBg = Color(0xFF4A4580);
 
 class AdminCitasScreen extends StatefulWidget {
   const AdminCitasScreen({super.key});
@@ -24,6 +25,16 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
   final _searchCtrl = TextEditingController();
   String _busqueda = '';
   String _filtroEstado = 'todos';
+
+  // Ancho de cada columna
+  static const double _colFecha = 110;
+  static const double _colHora = 70;
+  static const double _colMascota = 110;
+  static const double _colUsuario = 130;
+  static const double _colVeterinario = 130;
+  static const double _colMotivo = 140;
+  static const double _colEstado = 110;
+  static const double _colAccion = 56;
 
   @override
   void initState() {
@@ -47,9 +58,23 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
       final matchBusqueda = q.isEmpty ||
           c.mascotaNombre.toLowerCase().contains(q) ||
           c.propietarioNombre.toLowerCase().contains(q) ||
+          c.veterinarioNombre.toLowerCase().contains(q) ||
           c.motivo.toLowerCase().contains(q);
       return matchEstado && matchBusqueda;
     }).toList();
+  }
+
+  Color _estadoColor(String estado) {
+    switch (estado.toLowerCase()) {
+      case 'confirmada':
+        return _green;
+      case 'completada':
+        return _blue;
+      case 'rechazada':
+        return _red;
+      default:
+        return _orange;
+    }
   }
 
   @override
@@ -63,7 +88,7 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _dark, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Citas',
+        title: Text('Gestión de Citas',
             style: GoogleFonts.poppins(
                 fontSize: 18, fontWeight: FontWeight.w700, color: _dark)),
         centerTitle: true,
@@ -90,14 +115,15 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
                   onChanged: (v) => setState(() => _busqueda = v),
                   style: GoogleFonts.poppins(fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: 'Buscar por mascota, propietario o motivo…',
+                    hintText: 'Buscar por mascota, usuario, veterinario o motivo…',
                     hintStyle: GoogleFonts.poppins(
                         fontSize: 13, color: Colors.grey.shade400),
-                    prefixIcon:
-                        const Icon(Icons.search_rounded, color: _purple, size: 20),
+                    prefixIcon: const Icon(Icons.search_rounded,
+                        color: _purple, size: 20),
                     suffixIcon: _busqueda.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.close_rounded, color: _grey, size: 18),
+                            icon: const Icon(Icons.close_rounded,
+                                color: _grey, size: 18),
                             onPressed: () {
                               _searchCtrl.clear();
                               setState(() => _busqueda = '');
@@ -106,8 +132,8 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
                         : null,
                     filled: true,
                     fillColor: _bg,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide.none),
@@ -135,7 +161,7 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
           ),
           const Divider(height: 1),
 
-          // ── Lista ───────────────────────────────────────────────────────
+          // ── Tabla ───────────────────────────────────────────────────────
           Expanded(
             child: Consumer<AdminController>(
               builder: (ctx, ctrl, _) {
@@ -144,30 +170,83 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
                       child: CircularProgressIndicator(color: _purple));
                 }
                 final lista = _filtrar(ctrl.citas);
-                if (lista.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.calendar_month_rounded,
-                            size: 56, color: _grey.withValues(alpha: 0.4)),
-                        const SizedBox(height: 12),
-                        Text('Sin resultados',
-                            style: GoogleFonts.poppins(color: _grey, fontSize: 15)),
-                      ],
+
+                return Column(
+                  children: [
+                    // Contador
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _purple.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${lista.length} cita${lista.length == 1 ? '' : 's'}',
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _purple),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  );
-                }
-                return RefreshIndicator(
-                  color: _purple,
-                  onRefresh: () => ctrl.cargarCitas(),
-                  child: ListView.separated(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-                    itemCount: lista.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _CitaCard(cita: lista[i], ctrl: ctrl),
-                  ),
+
+                    // Tabla con scroll horizontal
+                    Expanded(
+                      child: lista.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.calendar_month_rounded,
+                                      size: 56,
+                                      color: _grey.withValues(alpha: 0.4)),
+                                  const SizedBox(height: 12),
+                                  Text('Sin resultados',
+                                      style: GoogleFonts.poppins(
+                                          color: _grey, fontSize: 15)),
+                                ],
+                              ),
+                            )
+                          : RefreshIndicator(
+                              color: _purple,
+                              onRefresh: () => ctrl.cargarCitas(),
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  physics: const BouncingScrollPhysics(),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      // ── Encabezado ──
+                                      _TableHeader(),
+                                      // ── Filas ──
+                                      ...lista.asMap().entries.map((entry) {
+                                        final i = entry.key;
+                                        final c = entry.value;
+                                        return _TableRow(
+                                          cita: c,
+                                          ctrl: ctrl,
+                                          isEven: i.isEven,
+                                        );
+                                      }),
+                                      const SizedBox(height: 40),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -200,12 +279,78 @@ class _AdminCitasScreenState extends State<AdminCitasScreen> {
   }
 }
 
-// ── Tarjeta de cita ───────────────────────────────────────────────────────────
+// ── Encabezado de la tabla ────────────────────────────────────────────────────
+class _TableHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _headerBg,
+      child: Row(
+        children: [
+          _HeaderCell('Fecha', _AdminCitasScreenState._colFecha),
+          _vDivider(),
+          _HeaderCell('Hora', _AdminCitasScreenState._colHora),
+          _vDivider(),
+          _HeaderCell('Mascota', _AdminCitasScreenState._colMascota),
+          _vDivider(),
+          _HeaderCell('Usuario', _AdminCitasScreenState._colUsuario),
+          _vDivider(),
+          _HeaderCell('Veterinario', _AdminCitasScreenState._colVeterinario),
+          _vDivider(),
+          _HeaderCell('Motivo', _AdminCitasScreenState._colMotivo),
+          _vDivider(),
+          _HeaderCell('Estado', _AdminCitasScreenState._colEstado),
+          _vDivider(),
+          _HeaderCell('', _AdminCitasScreenState._colAccion),
+        ],
+      ),
+    );
+  }
 
-class _CitaCard extends StatelessWidget {
+  Widget _vDivider() => Container(
+        width: 1,
+        height: 44,
+        color: Colors.white.withValues(alpha: 0.15),
+      );
+}
+
+class _HeaderCell extends StatelessWidget {
+  final String label;
+  final double width;
+  const _HeaderCell(this.label, this.width);
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: 44,
+      child: Center(
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            letterSpacing: 0.3,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Fila de la tabla ──────────────────────────────────────────────────────────
+class _TableRow extends StatelessWidget {
   final CitaModel cita;
   final AdminController ctrl;
-  const _CitaCard({required this.cita, required this.ctrl});
+  final bool isEven;
+
+  const _TableRow({
+    required this.cita,
+    required this.ctrl,
+    required this.isEven,
+  });
 
   Color get _estadoColor {
     switch (cita.estado.toLowerCase()) {
@@ -222,93 +367,187 @@ class _CitaCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rowColor = isEven ? Colors.white : const Color(0xFFF7F6FD);
+
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border(left: BorderSide(color: _estadoColor, width: 4)),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 10,
-              offset: const Offset(0, 3))
+      color: rowColor,
+      child: Row(
+        children: [
+          // Fecha
+          _DataCell(
+            width: _AdminCitasScreenState._colFecha,
+            child: Text(
+              cita.fecha.isNotEmpty
+                  ? cita.fecha.split('-').reversed.join('/')
+                  : '—',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 11, color: _dark),
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Hora
+          _DataCell(
+            width: _AdminCitasScreenState._colHora,
+            child: Text(
+              cita.hora.isNotEmpty ? cita.hora : '—',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 11, color: _dark),
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Mascota
+          _DataCell(
+            width: _AdminCitasScreenState._colMascota,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.pets_rounded, size: 12, color: _purple),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    cita.mascotaNombre,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: _dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Usuario (propietario)
+          _DataCell(
+            width: _AdminCitasScreenState._colUsuario,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.person_outline_rounded,
+                    size: 12, color: _blue),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    cita.propietarioNombre.isNotEmpty
+                        ? cita.propietarioNombre
+                        : '—',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(fontSize: 11, color: _dark),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Veterinario
+          _DataCell(
+            width: _AdminCitasScreenState._colVeterinario,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.medical_services_outlined,
+                    size: 12, color: _green),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    cita.veterinarioNombre.isNotEmpty
+                        ? cita.veterinarioNombre
+                        : 'Sin asignar',
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: cita.veterinarioNombre.isNotEmpty &&
+                              cita.veterinarioNombre != 'Sin asignar'
+                          ? _dark
+                          : _grey,
+                      fontStyle: cita.veterinarioNombre.isNotEmpty &&
+                              cita.veterinarioNombre != 'Sin asignar'
+                          ? FontStyle.normal
+                          : FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Motivo
+          _DataCell(
+            width: _AdminCitasScreenState._colMotivo,
+            child: Text(
+              cita.motivo.isNotEmpty ? cita.motivo : '—',
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+              style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Estado
+          _DataCell(
+            width: _AdminCitasScreenState._colEstado,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _estadoColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: _estadoColor.withValues(alpha: 0.4), width: 1),
+                ),
+                child: Text(
+                  _capitalize(cita.estado),
+                  style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: _estadoColor),
+                ),
+              ),
+            ),
+          ),
+          _vDivider(rowColor),
+
+          // Acción eliminar
+          _DataCell(
+            width: _AdminCitasScreenState._colAccion,
+            child: Center(
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: const Icon(Icons.delete_outline_rounded,
+                    color: _red, size: 18),
+                onPressed: () => _confirmarEliminar(context),
+              ),
+            ),
+          ),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            // Icono estado
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _estadoColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.calendar_today_rounded,
-                  color: _estadoColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            // Datos
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(cita.mascotaNombre,
-                      style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: _dark)),
-                  if (cita.propietarioNombre.isNotEmpty)
-                    Text('Propietario: ${cita.propietarioNombre}',
-                        style: GoogleFonts.poppins(fontSize: 11, color: _grey)),
-                  const SizedBox(height: 4),
-                  Wrap(spacing: 6, runSpacing: 4, children: [
-                    _badge(
-                        '${cita.fecha.split('-').reversed.join('/')}  ${cita.hora}',
-                        _purple),
-                    _badge(cita.estado, _estadoColor),
-                    if (cita.motivo.isNotEmpty)
-                      _badge(
-                          cita.motivo.length > 30
-                              ? '${cita.motivo.substring(0, 30)}…'
-                              : cita.motivo,
-                          _grey),
-                  ]),
-                ],
-              ),
-            ),
-            // Acción eliminar
-            IconButton(
-              icon: const Icon(Icons.delete_outline_rounded, color: _red, size: 20),
-              onPressed: () => _confirmarEliminar(context),
-            ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _badge(String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(label,
-          style: GoogleFonts.poppins(
-              fontSize: 10, fontWeight: FontWeight.w600, color: color)),
-    );
-  }
+  Widget _vDivider(Color rowColor) => Container(
+        width: 1,
+        height: 48,
+        color: const Color(0xFFE2E8F0),
+      );
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
   Future<void> _confirmarEliminar(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Eliminar cita',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w700, color: _dark)),
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700, color: _dark)),
         content: Text(
           '¿Eliminar la cita de "${cita.mascotaNombre}"? Esta acción no se puede deshacer.',
           style: GoogleFonts.poppins(fontSize: 13, color: _grey),
@@ -316,7 +555,8 @@ class _CitaCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar', style: GoogleFonts.poppins(color: _grey)),
+            child:
+                Text('Cancelar', style: GoogleFonts.poppins(color: _grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -324,10 +564,12 @@ class _CitaCard extends StatelessWidget {
               backgroundColor: _red,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
-            child:
-                Text('Eliminar', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            child: Text('Eliminar',
+                style:
+                    GoogleFonts.poppins(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -336,11 +578,30 @@ class _CitaCard extends StatelessWidget {
     final exito = await ctrl.eliminarCita(cita.id);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(exito ? 'Cita eliminada' : (ctrl.errorMessage ?? 'Error'),
+      content: Text(
+          exito ? 'Cita eliminada' : (ctrl.errorMessage ?? 'Error'),
           style: GoogleFonts.poppins(fontSize: 13)),
       backgroundColor: exito ? _green : _red,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
+  }
+}
+
+// ── Celda de datos ────────────────────────────────────────────────────────────
+class _DataCell extends StatelessWidget {
+  final double width;
+  final Widget child;
+
+  const _DataCell({required this.width, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Align(alignment: Alignment.centerLeft, child: child),
+    );
   }
 }

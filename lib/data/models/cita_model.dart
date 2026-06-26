@@ -5,6 +5,7 @@ class CitaModel {
   final String? mascotaId;      // masc_id
   final String mascotaNombre;   // se obtiene por join o se guarda aparte
   final String propietarioNombre;
+  final String veterinarioNombre; // nombre del veterinario asignado
   final String motivo;          // cita_motivo
   final String fecha;           // cita_fecha (ISO string)
   final String hora;            // extraída de cita_fecha
@@ -20,6 +21,7 @@ class CitaModel {
     this.mascotaId,
     required this.mascotaNombre,
     required this.propietarioNombre,
+    this.veterinarioNombre = '',
     required this.motivo,
     required this.fecha,
     required this.hora,
@@ -60,6 +62,11 @@ class CitaModel {
         json['propietario_nombre'] as String? ??
         '';
 
+    // Nombre veterinario: viene de join veterinarios -> usuarios
+    final veterinariosJoin = json['veterinarios'] as Map<String, dynamic>?;
+    final vetUsuariosJoin = veterinariosJoin?['usuarios'] as Map<String, dynamic>?;
+    final veterinarioNombre = vetUsuariosJoin?['usua_nombre'] as String? ?? 'Sin asignar';
+
     return CitaModel(
       id: json['cita_id']?.toString() ?? '',
       usuarioId: json['usua_id']?.toString() ?? '',
@@ -67,6 +74,7 @@ class CitaModel {
       mascotaId: json['masc_id']?.toString(),
       mascotaNombre: mascotaNombre,
       propietarioNombre: propietarioNombre,
+      veterinarioNombre: veterinarioNombre,
       motivo: json['cita_motivo'] as String? ?? '',
       fecha: fechaStr,
       hora: horaStr,
@@ -99,6 +107,7 @@ class CitaModel {
       mascotaId: mascotaId,
       mascotaNombre: mascotaNombre,
       propietarioNombre: propietarioNombre,
+      veterinarioNombre: veterinarioNombre,
       motivo: motivo,
       fecha: fecha,
       hora: hora,

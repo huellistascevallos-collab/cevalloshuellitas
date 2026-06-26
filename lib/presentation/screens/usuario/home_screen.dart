@@ -47,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
       context.read<MascotaController>().cargarMascotasAdopcion();
       final uid = context.read<AuthController>().currentUser?.id;
       if (uid != null) {
@@ -54,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _solicCtrl = solicCtrl; // guardar referencia para dispose
         // Inicia Realtime + polling de adopciones (carga + vigilancia activa)
         await solicCtrl.iniciarVigilancia(uid);
+        if (!mounted) return;
         // Cargar historial completo de solicitudes
         solicCtrl.cargarMisSolicitudes(uid);
         solicCtrl.cargarSolicitudesRecibidas(uid);
@@ -61,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final citaCtrl = context.read<CitaController>();
         citaCtrl.suscribirNotificaciones(entityId: uid, rol: 'usuario');
         await citaCtrl.cargarCitasDeUsuario(uid);
+        if (!mounted) return;
         citaCtrl.programarRecordatoriosExistentes(
             citaCtrl.citasDelUsuario, 'usuario');
         citaCtrl.cargarNotificacionesExistentes(uid, 'usuario');
@@ -595,7 +598,9 @@ class _HomeScreenState extends State<HomeScreen> {
         child: _AddMascotaSheet(
           onGuardado: () {
             // Recargar la lista de mascotas del usuario tras guardar
-            context.read<MascotaController>().cargarMascotas(uid);
+            if (mounted) {
+              context.read<MascotaController>().cargarMascotas(uid);
+            }
           },
         ),
       ),

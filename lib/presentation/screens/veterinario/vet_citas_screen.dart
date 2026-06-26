@@ -7,6 +7,17 @@ import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/veterinario_controller.dart';
 import 'detalle_cita_screen.dart';
 
+// ── Paleta ────────────────────────────────────────────────────────────────────
+const _tealDark   = Color(0xFF126E82);
+const _teal       = Color(0xFF1CB5C9);
+const _green      = Color(0xFF43B89C);
+const _orange     = Color(0xFFE58D57);
+const _red        = Color(0xFFE53935);
+const _purple     = Color(0xFF7C6FCD);
+const _dark       = Color(0xFF1A1A2E);
+const _grey       = Color(0xFF8A9BB0);
+const _headerBg   = Color(0xFF126E82);
+
 class VetCitasScreen extends StatefulWidget {
   const VetCitasScreen({super.key});
 
@@ -239,6 +250,25 @@ class _VetCitasScreenState extends State<VetCitasScreen>
             ),
           );
         }
+
+        // ── Historial (completadas) → tabla Excel ──
+        if (filtro == 'completada') {
+          return _HistorialTabla(lista: lista, onVerDetalle: (cita) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => DetalleCitaScreen(cita: cita)),
+            ).then((_) {
+              if (!context.mounted) return;
+              final veteId =
+                  context.read<VeterinarioController>().perfil?.id;
+              if (veteId != null) {
+                context.read<CitaController>().cargarCitasDeVeterinario(veteId);
+              }
+            });
+          });
+        }
+
+        // ── Pendientes / Todas → cards ──
         return ListView.builder(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
@@ -674,6 +704,336 @@ class _NuevaCitaSheetState extends State<_NuevaCitaSheet> {
   }
 }
 
+// ── Tabla Excel: Historial de citas completadas ───────────────────────────────
+class _HistorialTabla extends StatelessWidget {
+  final List<CitaModel> lista;
+  final void Function(CitaModel) onVerDetalle;
+
+  const _HistorialTabla({required this.lista, required this.onVerDetalle});
+
+  // Anchos de columna
+  static const double _colFecha      = 100;
+  static const double _colHora       = 68;
+  static const double _colMascota    = 120;
+  static const double _colPropietario = 130;
+  static const double _colMotivo     = 150;
+  static const double _colDireccion  = 140;
+  static const double _colEstado     = 110;
+  static const double _colDetalle    = 72;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Contador
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: _green.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              '${lista.length} cita${lista.length == 1 ? '' : 's'} completada${lista.length == 1 ? '' : 's'}',
+              style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: _green),
+            ),
+          ),
+        ),
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 100),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Encabezado
+                  Container(
+                    color: _headerBg,
+                    child: Row(children: [
+                      _TH('Fecha',       _colFecha),
+                      _TD(),
+                      _TH('Hora',        _colHora),
+                      _TD(),
+                      _TH('Mascota',     _colMascota),
+                      _TD(),
+                      _TH('Propietario', _colPropietario),
+                      _TD(),
+                      _TH('Motivo',      _colMotivo),
+                      _TD(),
+                      _TH('Dirección',   _colDireccion),
+                      _TD(),
+                      _TH('Estado',      _colEstado),
+                      _TD(),
+                      _TH('Detalle',     _colDetalle),
+                    ]),
+                  ),
+                  // Filas
+                  ...lista.asMap().entries.map((e) {
+                    final i = e.key;
+                    final c = e.value;
+                    final rowColor = i.isEven
+                        ? Colors.white
+                        : const Color(0xFFF0FAFB);
+                    return _HistorialFila(
+                      cita: c,
+                      rowColor: rowColor,
+                      onVerDetalle: () => onVerDetalle(c),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TH extends StatelessWidget {
+  final String label;
+  final double width;
+  const _TH(this.label, this.width);
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: width,
+        height: 44,
+        child: Center(
+          child: Text(label,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: 0.3)),
+        ),
+      );
+}
+
+class _TD extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 44,
+        color: Colors.white.withValues(alpha: 0.15),
+      );
+}
+
+class _HistorialFila extends StatelessWidget {
+  final CitaModel cita;
+  final Color rowColor;
+  final VoidCallback onVerDetalle;
+
+  const _HistorialFila({
+    required this.cita,
+    required this.rowColor,
+    required this.onVerDetalle,
+  });
+
+  Color get _estadoColor {
+    switch (cita.estado.toLowerCase()) {
+      case 'completada':
+      case 'finalizada':
+        return _green;
+      case 'confirmada':
+        return _teal;
+      case 'cancelada':
+      case 'rechazada':
+        return _red;
+      default:
+        return _orange;
+    }
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: rowColor,
+      child: Row(children: [
+        // Fecha
+        _TC(
+          width: _HistorialTabla._colFecha,
+          child: Text(
+            cita.fecha.isNotEmpty
+                ? cita.fecha.split('-').reversed.join('/')
+                : '—',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(fontSize: 11, color: _dark),
+          ),
+        ),
+        _VD(rowColor),
+
+        // Hora
+        _TC(
+          width: _HistorialTabla._colHora,
+          child: Text(
+            cita.hora.isNotEmpty ? cita.hora : '—',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+                fontSize: 11, fontWeight: FontWeight.w600, color: _teal),
+          ),
+        ),
+        _VD(rowColor),
+
+        // Mascota
+        _TC(
+          width: _HistorialTabla._colMascota,
+          child: Row(children: [
+            const Icon(Icons.pets_rounded, size: 11, color: _teal),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(cita.mascotaNombre,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: _dark)),
+            ),
+          ]),
+        ),
+        _VD(rowColor),
+
+        // Propietario
+        _TC(
+          width: _HistorialTabla._colPropietario,
+          child: Row(children: [
+            const Icon(Icons.person_outline_rounded, size: 11, color: _purple),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                cita.propietarioNombre.isNotEmpty
+                    ? cita.propietarioNombre
+                    : '—',
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(fontSize: 11, color: _dark),
+              ),
+            ),
+          ]),
+        ),
+        _VD(rowColor),
+
+        // Motivo
+        _TC(
+          width: _HistorialTabla._colMotivo,
+          child: Text(
+            cita.motivo.isNotEmpty ? cita.motivo : '—',
+            overflow: TextOverflow.ellipsis,
+            maxLines: 2,
+            style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+          ),
+        ),
+        _VD(rowColor),
+
+        // Dirección
+        _TC(
+          width: _HistorialTabla._colDireccion,
+          child: Text(
+            cita.direccion?.isNotEmpty == true ? cita.direccion! : '—',
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(fontSize: 11, color: _grey),
+          ),
+        ),
+        _VD(rowColor),
+
+        // Estado
+        _TC(
+          width: _HistorialTabla._colEstado,
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _estadoColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: _estadoColor.withValues(alpha: 0.4), width: 1),
+              ),
+              child: Text(
+                _capitalize(cita.estado),
+                style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _estadoColor),
+              ),
+            ),
+          ),
+        ),
+        _VD(rowColor),
+
+        // Botón detalle
+        _TC(
+          width: _HistorialTabla._colDetalle,
+          child: Center(
+            child: GestureDetector(
+              onTap: onVerDetalle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: _teal.withValues(alpha: 0.3), width: 1),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Ver',
+                        style: GoogleFonts.poppins(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _teal)),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.arrow_forward_ios_rounded,
+                        size: 8, color: _teal),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+class _TC extends StatelessWidget {
+  final double width;
+  final Widget child;
+  const _TC({required this.width, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: width,
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Align(alignment: Alignment.centerLeft, child: child),
+      );
+}
+
+class _VD extends StatelessWidget {
+  final Color rowColor;
+  const _VD(this.rowColor);
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: 1,
+        height: 48,
+        color: const Color(0xFFDDE5ED),
+      );
+}
+
+// ── Clipper cabecera ──────────────────────────────────────────────────────────
 class _HeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

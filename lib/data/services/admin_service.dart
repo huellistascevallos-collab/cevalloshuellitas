@@ -146,12 +146,12 @@ class AdminService {
 
   // ── Citas ─────────────────────────────────────────────────────────────────
 
-  /// Todas las citas con join de mascotas y usuarios (para el admin).
+  /// Todas las citas con join de mascotas, usuarios y veterinarios (para el admin).
   Future<List<CitaModel>> obtenerTodasLasCitas() async {
     try {
       final rows = await _client
           .from('citas')
-          .select('*, mascotas(masc_nombre), usuarios(usua_nombre)')
+          .select('*, mascotas(masc_nombre), usuarios(usua_nombre), veterinarios(usuarios(usua_nombre))')
           .order('cita_fecha', ascending: false);
       return (rows as List).map((e) => CitaModel.fromJson(e)).toList();
     } catch (e) {
