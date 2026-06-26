@@ -146,14 +146,77 @@ class _UrgenciasScreenState extends State<UrgenciasScreen> {
                       const SizedBox(height: 8),
                       _urgRow(Icons.notes_rounded, 'Síntomas',
                           sintomas, const Color(0xFF1A1A2E)),
-                      if (cita.direccion != null &&
-                          cita.direccion!.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        _urgRow(Icons.home_rounded, 'Domicilio',
-                            cita.direccion!, const Color(0xFF1CB5C9)),
-                      ],
                     ],
                   ),
+                ),
+                const SizedBox(height: 10),
+                // Banner prominente de modalidad
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: (cita.direccion != null && cita.direccion!.isNotEmpty
+                            ? const Color(0xFF1CB5C9)
+                            : const Color(0xFF0E9F6E))
+                        .withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: (cita.direccion != null && cita.direccion!.isNotEmpty
+                              ? const Color(0xFF1CB5C9)
+                              : const Color(0xFF0E9F6E))
+                          .withValues(alpha: 0.45),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (cita.direccion != null && cita.direccion!.isNotEmpty
+                                ? const Color(0xFF1CB5C9)
+                                : const Color(0xFF0E9F6E))
+                            .withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        cita.direccion != null && cita.direccion!.isNotEmpty
+                            ? Icons.home_rounded
+                            : Icons.store_rounded,
+                        color: cita.direccion != null && cita.direccion!.isNotEmpty
+                            ? const Color(0xFF1CB5C9)
+                            : const Color(0xFF0E9F6E),
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          cita.direccion != null && cita.direccion!.isNotEmpty
+                              ? '🏠 Atención a DOMICILIO'
+                              : '🏪 Atención en el LOCAL',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: cita.direccion != null && cita.direccion!.isNotEmpty
+                                ? const Color(0xFF126E82)
+                                : const Color(0xFF0E7A52),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          cita.direccion != null && cita.direccion!.isNotEmpty
+                              ? cita.direccion!
+                              : 'El propietario llevará a su mascota',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: Colors.grey.shade600),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    )),
+                  ]),
                 ),
                 const SizedBox(height: 24),
                 // Botones Aceptar / Rechazar

@@ -127,6 +127,66 @@ class FcmService {
     }
   }
 
+  /// Envía una notificación push de urgencia al veterinario seleccionado.
+  /// Requiere que el veterinario tenga fcm_token guardado en la tabla usuarios.
+  Future<void> enviarNotificacionUrgencia({
+    required String veteUserId,
+    required String mascotaNombre,
+    required String propietarioNombre,
+    required String sintomas,
+    required String modalidad,
+    required String citaId,
+    String? direccion,
+  }) async {
+    try {
+      Firebase.app();
+    } on FirebaseException {
+      debugPrint('enviarNotificacionUrgencia abortado — Firebase no disponible.');
+      return;
+    }
+    try {
+      // Obtener el fcm_token del veterinario desde Supabase
+      final row = await Supabase.instance.client
+          .from('usuarios')
+          .select('fcm_token')
+          .eq('usua_id', veteUserId)
+          .maybeSingle();
+
+      final token = row?['fcm_token'] as String?;
+      if (token == null || token.isEmpty) {
+        debugPrint('enviarNotificacionUrgencia: veterinario sin fcm_token');
+        return;
+      }
+
+      final lugar = modalidad == 'domicilio' ? 'A domicilio' : 'En el local';
+      final cuerpo = '$propietarioNombre • $mascotaNombre • $lugar';
+
+      // Llamar a la Edge Function de Supabase para enviar via FCM
+      await Supabase.instance.client.functions.invoke(
+        'send-push-notification',
+        body: {
+          'token': token,
+          'title': '🚨 Urgencia Crítica',
+          'body': cuerpo,
+          'data': {
+            'tipo': 'urgencia',
+            'citaId': citaId,
+            'mascota': mascotaNombre,
+            'propietario': propietarioNombre,
+            'modalidad': modalidad,
+            'sintomas': sintomas,
+            'direccion': direccion ?? '',
+            'urgente': 'true',
+            'payload': 'urgencia:$citaId',
+          },
+        },
+      );
+      debugPrint('Notificación push de urgencia enviada al token: $token');
+    } catch (e) {
+      debugPrint('Error enviando notificación push de urgencia: $e');
+    }
+  }
+
   /// Elimina el token FCM del usuario al cerrar sesión.
   Future<void> limpiarToken(String userId) async {
     try {

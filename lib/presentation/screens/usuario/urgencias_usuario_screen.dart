@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../../data/models/cita_model.dart';
 import '../../../data/models/mascota_model.dart';
 import '../../../data/models/veterinario_model.dart';
+import '../../../data/services/fcm_service.dart';
 import '../../../domain/controllers/auth_controller.dart';
 import '../../../domain/controllers/cita_controller.dart';
 import '../../../domain/controllers/mascota_controller.dart';
@@ -960,6 +961,20 @@ class _UrgenciasUsuarioScreenState extends State<UrgenciasUsuarioScreen> {
       final citaCreada = citaCtrl.citasDelUsuario.isNotEmpty
           ? citaCtrl.citasDelUsuario.first
           : cita;
+
+      // Enviar notificación push al veterinario seleccionado
+      if (_veterinarioSeleccionado?.usuarioId != null &&
+          _veterinarioSeleccionado!.usuarioId!.isNotEmpty) {
+        FcmService.instance.enviarNotificacionUrgencia(
+          veteUserId: _veterinarioSeleccionado!.usuarioId!,
+          mascotaNombre: _nombreMascota,
+          propietarioNombre: user.nombre,
+          sintomas: _sintomasCtrl.text.trim(),
+          modalidad: _modalidad,
+          citaId: citaCreada.id,
+          direccion: direccionFinal,
+        );
+      }
 
       // Navegar a la pantalla de espera (reemplaza la pantalla de urgencias)
       Navigator.pushReplacement(
