@@ -9,34 +9,248 @@
 //   - errorMessage: último error a mostrar en la UI
 //   - currentUser: perfil del usuario autenticado
 
+import 'dart:async';
 import 'dart:io' show File;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../core/auth_error_mapper.dart';
+import '../../core/token_push_port.dart';
 import '../../data/models/usuario_model.dart';
 import '../../data/services/auth_service.dart';
-import '../../data/services/fcm_service.dart';
 
 class AuthController extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  // Seam de inyección (TDD-02): en producción se usa AuthService() con el
+  // singleton de Supabase; los tests inyectan un doble sin tocar la red.
+  final AuthService _authService;
+
+  // Seam del puerto FCM (TDD-06 / DES-DP-1(a)): en producción delega en
+  // FcmService.instance vía FcmTokenPushAdapter; los tests inyectan un
+  // FakeTokenPushPort y el controlador NO toca Firebase.
+  final TokenPushPort _tokenPush;
+
+  AuthController({AuthService? authService, TokenPushPort? tokenPush})
+    : _authService = authService ?? AuthService(),
+      _tokenPush = tokenPush ?? const FcmTokenPushAdapter();
+
+  // ── Listener global de sesión (S2 / SES-01) ────────────────────────────────
+  // Suscripción única a AuthService.authStates (onAuthStateChange de Supabase);
+  // se registra una sola vez y se cancela en dispose() (sin fugas).
+  StreamSubscription<AuthState>? _authSub;
+
+  // true mientras `logout()` está pidiendo el cierre: el signedOut resultante
+  // se trata en silencio (sin mensaje de expiración). One-shot: se consume al
+  // procesar el evento (diseño, matriz de eventos).
+  bool _cerrandoSesion = false;
+
+  // Aviso one-shot para el Consumer raíz: queda en true tras cada `signedOut`
+  // (silencioso o remoto) hasta que `consumirAvisoDeCierre()` lo lee y resetea.
+  // Lector único por diseño (DP-P2-1, opción a).
+  bool _avisoDeCierrePendiente = false;
+
+  // true desde que llega `passwordRecovery` hasta que la recuperación se
+  // completa (signOut) o se consume el fallo. El Consumer raíz usa este flag
+  // para renderizar NuevaContrasenaScreen con prioridad sobre sesión/home (RST-07).
+  bool _enModoRecuperacion = false;
+  bool get enModoRecuperacion => _enModoRecuperacion;
+
+  // Aviso one-shot para enlace de recuperación inválido/expirado (RST-09):
+  // el Consumer raíz lo consume para resetear pila y mostrar errorMessage.
+  bool _avisoEnlaceInvalidoPendiente = false;
+
+  /// Devuelve true UNA sola vez tras un fallo de enlace de recuperación
+  /// (consume-once, patrón `_avisoDeCierrePendiente`).
+  bool consumirAvisoEnlaceInvalido() {
+    final pendiente = _avisoEnlaceInvalidoPendiente;
+    _avisoEnlaceInvalidoPendiente = false;
+    return pendiente;
+  }
+
+  /// Suscribe el listener de eventos de autenticación de forma idempotente:
+  /// las llamadas repetidas NO registran suscripciones adicionales (SES-01).
+  void initAuthListener() {
+    if (_authSub != null) return;
+    _authSub = _authService.authStates.listen(
+      (state) => unawaited(_procesarEvento(state)),
+      // Errores del stream: si es fallo de enlace de recuperación
+      // (AuthPKCEGrantCodeExchangeError / AuthApiException) → muta estado
+      // (flag false, aviso one-shot, errorMessage literal). Otros errores
+      // (AuthRetryableFetchException, etc.) → solo traza, sin mutar estado
+      // (SES-02: offline no debe simular logout).
+      onError: (Object error) {
+        if (AuthErrorMapper.esFalloDeEnlaceRecuperacion(error)) {
+          _enModoRecuperacion = false;
+          _avisoEnlaceInvalidoPendiente = true;
+          _errorMessage = AuthErrorMapper.mensajeEnlaceInvalido;
+          notifyListeners();
+        } else {
+          debugPrint('Stream de sesión (onAuthStateChange): $error');
+        }
+      },
+    );
+  }
+
+  /// Devuelve true UNA sola vez tras cada `signedOut` (consume-once): el
+  /// Consumer raíz de `lib/main.dart` lo lee como primera línea para programar
+  /// el reset de pila a `/login` (post-frame y sólo si `canPop()`).
+  bool consumirAvisoDeCierre() {
+    final pendiente = _avisoDeCierrePendiente;
+    _avisoDeCierrePendiente = false;
+    return pendiente;
+  }
+
+  /// Procesa un evento de `onAuthStateChange` según la matriz del diseño.
+  ///
+  /// `signedOut` (SES-02): si el cierre lo pidió `logout()` se limpia el
+  /// estado en silencio; si llega del servidor (expiración/revocación) se
+  /// limpia además dejando el mensaje de sesión. En ambos casos se marca
+  /// `_avisoDeCierrePendiente` para que la UI resetee la pila de navegación.
+  ///
+  /// `signedIn` (SES-03): carga el perfil de `session.user.id` para que el
+  /// Consumer raíz enrute por rol.
+  Future<void> _procesarEvento(AuthState state) async {
+    switch (state.event) {
+      case AuthChangeEvent.signedOut:
+        final silencioso = _cerrandoSesion;
+        _cerrandoSesion = false; // one-shot: el próximo signedOut es remoto
+        _currentUser = null;
+        if (!silencioso) {
+          _errorMessage = 'Tu sesión ha expirado. Inicia sesión de nuevo.';
+        }
+        _avisoDeCierrePendiente = true;
+        notifyListeners();
+      case AuthChangeEvent.signedIn:
+        final uid = state.session?.user.id;
+        if (uid != null) await _cargarPerfil(uid);
+      case AuthChangeEvent.tokenRefreshed:
+        // SES-04: refresh silencioso — sin navegación, splash ni re-fetch
+        // de perfil; sólo mantiene viva la sesión. No-op explícito.
+        return;
+      case AuthChangeEvent.userUpdated:
+        // SES-05: el perfil se editó (p. ej. en otro dispositivo) →
+        // recargar `currentUser` desde la fuente para que la UI refleje
+        // los cambios sin re-login.
+        final uid = state.session?.user.id;
+        if (uid != null) await _cargarPerfil(uid);
+      case AuthChangeEvent.passwordRecovery:
+        // RST-07 / RST-01 / RST-02: setea flag de modo recuperación.
+        // NO carga perfil (cambio vs SES-06) — la sesión de recuperación es
+        // transitoria; el Consumer raíz renderiza NuevaContrasenaScreen
+        // mientras este flag sea true (prioridad sobre sesión/home).
+        _enModoRecuperacion = true;
+        notifyListeners();
+      case AuthChangeEvent.initialSession:
+        // SES-07: en frío, `tryRestoreSession()` es dueña del arranque —
+        // el replay de GoTrue no debe duplicar la carga (exactamente UNA
+        // vía: sin doble carga de perfil ni doble save de token FCM).
+        if (_isInitializing) return;
+        // En caliente: si hay sesión y aún no hay perfil cargado, cargarlo.
+        final uidInicial = state.session?.user.id;
+        if (_currentUser == null && uidInicial != null) {
+          await _cargarPerfil(uidInicial);
+        }
+      default:
+        // Resto de eventos: tareas 2.8 (tokenRefreshed), 2.10 (userUpdated),
+        // 2.11 (passwordRecovery / initialSession).
+        break;
+    }
+  }
+
+  /// Carga el perfil de [uid] en `currentUser` y notifica (SES-03).
+  /// Si la fila no existe (PGRST116) u otro fallo ocurre, se deja un estado
+  /// recuperable: `currentUser` limpio + mensaje genérico — sin crash ni loop
+  /// silencioso (orfanato residual detectable, SGN-06). Copy interim: el
+  /// `AuthErrorMapper` con el mensaje exacto de perfil inexistente llega en
+  /// la Fase 3 (tarea 3.6); por ahora se usa el fallback fijo de ERR-06.
+  Future<void> _cargarPerfil(String uid) async {
+    try {
+      _currentUser = await _authService.getUserProfile(uid);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error cargando perfil desde evento de sesión: $e');
+      _currentUser = null;
+      // ERR-06/SES-03: PGRST116 → mensaje exacto de perfil no encontrado
+      // (rama 4 del mapa; reemplaza el interim genérico de la Fase 2).
+      _errorMessage = AuthErrorMapper.map(e);
+      notifyListeners();
+    }
+  }
+
+  // ── Cooldown de reenvío de código (ERR-07 / SP-DP-1) ───────────────────────
+
+  /// Duración del cooldown de reenvío tras enviar el código de recuperación.
+  /// Configurable vía constante estática (SP-DP-1); default 60 s.
+  static const Duration cooldownReenvio = Duration(seconds: 60);
+
+  Timer? _timerCooldown;
+  Duration _cooldownRestante = Duration.zero;
+
+  /// Restante del cooldown (Duration.zero cuando no hay cooldown).
+  Duration get cooldownRestante => _cooldownRestante;
+
+  /// true cuando ya se puede reenviar el código (sin cooldown activo).
+  bool get puedeReenviarCodigo => _timerCooldown == null;
+
+  /// Arranca (o reinicia) el cooldown de reenvío: decrece 1 s por tick,
+  /// notifica cada segundo y detiene el timer al llegar a cero — así no
+  /// queda ningún timer vivo más allá de la ventana de cooldown.
+  void iniciarCooldownReenvio() {
+    _timerCooldown?.cancel();
+    _cooldownRestante = cooldownReenvio;
+    _timerCooldown = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_cooldownRestante.inSeconds <= 1) {
+        _cooldownRestante = Duration.zero;
+        _timerCooldown?.cancel();
+        _timerCooldown = null;
+        notifyListeners();
+      } else {
+        _cooldownRestante -= const Duration(seconds: 1);
+        notifyListeners();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    // Regla de duración (ERR-07): sin timers activos tras dispose().
+    _timerCooldown?.cancel();
+    _timerCooldown = null;
+    _authSub?.cancel();
+    _authSub = null;
+    super.dispose();
+  }
 
   // ── Estado interno ─────────────────────────────────────────────────────────
-  bool _isLoading      = false; // true mientras hay operación en curso
-  bool _isInitializing = true;  // true durante el splash inicial
-  String? _errorMessage;        // null si no hay error
-  UsuarioModel? _currentUser;   // null si no hay sesión
+  bool _isLoading = false; // true mientras hay operación en curso
+  bool _isInitializing = true; // true durante el splash inicial
+  String? _errorMessage; // null si no hay error
+  UsuarioModel? _currentUser; // null si no hay sesión
 
   // ── Getters públicos ────────────────────────────────────────────────────────
-  bool get isLoading      => _isLoading;
+  bool get isLoading => _isLoading;
   bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
   UsuarioModel? get currentUser => _currentUser;
   bool get isAuthenticated => _authService.isAuthenticated;
+
+  // ── Limpieza de error (ERR-01 / AMD-2026-10-23-01) ─────────────────────────
+
+  /// Limpia el mensaje de error pendiente y notifica a los listeners.
+  ///
+  /// Punto único de entrada para que una pantalla (p. ej. RegisterScreen en su
+  /// `initState`) descarte un banner de error heredado de una operación previa.
+  void limpiarError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
 
   // ── Login ──────────────────────────────────────────────────────────────────
 
   /// Inicia sesión con email y contraseña.
   /// Retorna true si tuvo éxito, false si falló (el error queda en errorMessage).
   Future<bool> login(String correo, String password) async {
+    // ERR-01: el error anterior no sobrevive al nuevo intento (silencioso,
+    // sin notify: el banner se limpia en el notify que sigue).
+    _errorMessage = null;
     _setLoading(true);
     try {
       _currentUser = await _authService.signIn(
@@ -44,17 +258,18 @@ class AuthController extends ChangeNotifier {
         password: password,
       );
       // Guardar token FCM para que el usuario reciba notificaciones push.
-      await FcmService.instance.guardarToken(_currentUser!.id);
+      await _tokenPush.guardarToken(_currentUser!.id);
       _setLoading(false);
       return true;
     } on AuthException catch (e) {
       // Errores de Supabase Auth (credenciales inválidas, email no confirmado, etc.)
-      _errorMessage = _mapAuthError(e.message);
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     } catch (e) {
+      // ERR-06: el texto crudo jamás llega a la UI — el mapa fija el copy.
       debugPrint('Error en login: $e');
-      _errorMessage = 'Error inesperado: $e';
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -63,22 +278,25 @@ class AuthController extends ChangeNotifier {
   /// Inicia sesión con Google.
   /// Retorna true si tuvo éxito, false si el usuario canceló o hubo error.
   Future<bool> loginWithGoogle() async {
+    // ERR-01: limpiar al entrar (la cancelación de Google queda silenciosa).
+    _errorMessage = null;
     _setLoading(true);
     try {
       _currentUser = await _authService.signInWithGoogle();
-      await FcmService.instance.guardarToken(_currentUser!.id);
+      await _tokenPush.guardarToken(_currentUser!.id);
       _setLoading(false);
       return true;
     } on AuthException catch (e) {
-      _errorMessage = _mapAuthError(e.message);
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     } catch (e) {
-      final msg = e.toString();
-      // Si el usuario canceló el selector, no mostramos error.
-      _errorMessage = msg.contains('cancelado')
-          ? null
-          : msg.replaceAll('Exception: ', '').replaceAll('exception: ', '');
+      // ERR-05/ERR-01: cancelación de Google → map devuelve null (silencio);
+      // cualquier otro fallo → copy permitido, jamás el wrapper crudo.
+      // Diagnóstico log-only (AMD-2026-10-23-02 / ERR-06): el texto crudo
+      // va SOLO al log de debug, jamás a la UI.
+      debugPrint('Error en login con Google: $e');
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -95,6 +313,8 @@ class AuthController extends ChangeNotifier {
     String? telefono,
     String rol = 'usuario',
   }) async {
+    // ERR-01: el error anterior no sobrevive al nuevo intento.
+    _errorMessage = null;
     _setLoading(true);
     try {
       _currentUser = await _authService.signUp(
@@ -104,16 +324,16 @@ class AuthController extends ChangeNotifier {
         telefono: telefono?.trim(),
         rol: rol,
       );
-      await FcmService.instance.guardarToken(_currentUser!.id);
+      await _tokenPush.guardarToken(_currentUser!.id);
       _setLoading(false);
       return true;
     } on AuthException catch (e) {
-      _errorMessage = _mapAuthError(e.message);
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     } catch (e) {
       debugPrint('Error en registro: $e');
-      _errorMessage = 'Error al crear la cuenta: $e';
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -124,9 +344,14 @@ class AuthController extends ChangeNotifier {
   /// Cierra la sesión: limpia el token FCM, cierra sesión en Supabase
   /// y resetea el estado local.
   Future<void> logout() async {
+    // ERR-01: cualquier banner previo se limpia al entrar.
+    _errorMessage = null;
+    // El `signedOut` que dispare Supabase es propio → tratarlo en silencio
+    // (sin mensaje de "sesión expirada") — diseño, matriz de eventos.
+    _cerrandoSesion = true;
     if (_currentUser != null) {
       // Quitar el token FCM para que el usuario no reciba más notificaciones.
-      await FcmService.instance.limpiarToken(_currentUser!.id);
+      await _tokenPush.limpiarToken(_currentUser!.id);
     }
     await _authService.signOut();
     _currentUser = null;
@@ -147,7 +372,7 @@ class AuthController extends ChangeNotifier {
       try {
         _currentUser = await _authService.getUserProfile(userId);
         // Actualizar token FCM (puede haber cambiado desde la última vez).
-        await FcmService.instance.guardarToken(userId);
+        await _tokenPush.guardarToken(userId);
       } catch (e) {
         debugPrint('Error al restaurar sesión: $e');
         // No abortamos: si falla, el usuario verá el login.
@@ -169,14 +394,17 @@ class AuthController extends ChangeNotifier {
     _setLoading(true);
     try {
       final url = await _authService.subirFotoUsuario(
-        _currentUser!.id, imagen, extension,
+        _currentUser!.id,
+        imagen,
+        extension,
       );
       // Actualizar el modelo local con la nueva URL sin recargar desde BD.
       _currentUser = _currentUser!.copyWith(fotoUrl: url);
       _setLoading(false);
       return true;
     } catch (e) {
-      _errorMessage = 'Error al subir la foto: $e';
+      // ERR-06: sin `$e` crudo en la UI — copy fijo vía el mapa.
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -193,6 +421,8 @@ class AuthController extends ChangeNotifier {
     bool? esProductor,
     String? tipoAnimales,
   }) async {
+    // ERR-01: el error anterior no sobrevive a la nueva operación.
+    _errorMessage = null;
     if (_currentUser == null) return false;
     _setLoading(true);
 
@@ -201,7 +431,9 @@ class AuthController extends ChangeNotifier {
 
     try {
       await _authService.updateUserProfile(
-        _currentUser!.id, nombre, telefono,
+        _currentUser!.id,
+        nombre,
+        telefono,
         cedula: cedula,
         direccionGps: direccionGps,
         esProductor: productorFinal,
@@ -219,7 +451,7 @@ class AuthController extends ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _errorMessage = 'Error al actualizar el perfil: $e';
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -227,6 +459,9 @@ class AuthController extends ChangeNotifier {
 
   /// Cambia el rol del usuario y actualiza el estado local.
   Future<bool> updateRol(String nuevoRol) async {
+    // ERR-01: el error anterior no sobrevive a la nueva operación.
+    // (updateRol sigue presente hasta la Fase 8 / DES-DP-3.)
+    _errorMessage = null;
     if (_currentUser == null) return false;
     _setLoading(true);
     try {
@@ -235,7 +470,7 @@ class AuthController extends ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _errorMessage = 'Error al cambiar el rol: $e';
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
@@ -245,37 +480,25 @@ class AuthController extends ChangeNotifier {
 
   /// Envía el OTP de recuperación al correo indicado.
   Future<bool> recuperarContrasena(String correo) async {
+    // ERR-01: el error anterior no sobrevive a la nueva operación.
+    _errorMessage = null;
     _setLoading(true);
     try {
       await _authService.enviarRecuperacionContrasena(correo.trim());
+      // ERR-07: el envío exitoso arranca el cooldown de reenvío
+      // (la UI se re-dibuja en el notify de _setLoading(false)).
+      iniciarCooldownReenvio();
       _setLoading(false);
       return true;
     } catch (e) {
-      _errorMessage = 'No se pudo enviar el correo. Verifica la dirección.';
-      _setLoading(false);
-      return false;
-    }
-  }
-
-  /// Verifica el OTP y cambia la contraseña al nuevo valor.
-  Future<bool> verificarOtpYCambiarContrasena({
-    required String correo,
-    required String otp,
-    required String nuevaContrasena,
-  }) async {
-    _setLoading(true);
-    try {
-      await _authService.verificarOtpYCambiarContrasena(
-        correo: correo, otp: otp, nuevaContrasena: nuevaContrasena,
-      );
-      _setLoading(false);
-      return true;
-    } on AuthException catch (e) {
-      _errorMessage = _mapAuthError(e.message);
-      _setLoading(false);
-      return false;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      // ERR-02 + ERR-07 esc. 2: el rate-limit del servidor muestra el copy
+      // de espera Y arranca el cooldown (server-driven). Sólo en este caso:
+      // un fallo de conexión (ERR-04) invita a "vuelve a intentarlo" y no
+      // debe bloquear el reenvío 60 s.
+      _errorMessage = AuthErrorMapper.map(e);
+      if (e.toString().contains('over_email_send_rate_limit')) {
+        iniciarCooldownReenvio();
+      }
       _setLoading(false);
       return false;
     }
@@ -283,6 +506,8 @@ class AuthController extends ChangeNotifier {
 
   /// Cambia la contraseña del usuario ya autenticado (desde perfil).
   Future<bool> cambiarContrasena(String nuevaContrasena) async {
+    // ERR-01: el error anterior no sobrevive a la nueva operación.
+    _errorMessage = null;
     _setLoading(true);
     try {
       await Supabase.instance.client.auth.updateUser(
@@ -291,14 +516,53 @@ class AuthController extends ChangeNotifier {
       _setLoading(false);
       return true;
     } on AuthException catch (e) {
-      _errorMessage = _mapAuthError(e.message);
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     } catch (e) {
-      _errorMessage = 'Error al cambiar la contraseña.';
+      _errorMessage = AuthErrorMapper.map(e);
       _setLoading(false);
       return false;
     }
+  }
+
+  // ── Recuperación por enlace (RST-11 / RST-DP-2(a)) ──────────────────────────
+
+  /// Restablece la contraseña usando la sesión de recuperación activa.
+  /// Requiere una sesión de recuperación válida (la creada por el intercambio
+  /// del código PKCE). En éxito: `updateUser` → `signOut` silencioso (reusa
+  /// `_cerrandoSesion` para no emitir mensaje de expiración), limpia el flag
+  /// `enModoRecuperacion` y retorna `true`. En fallo: `errorMessage` mapeado,
+  /// `signOut` NO invocado, flag se mantiene, retorna `false`.
+  Future<bool> restablecerContrasena(String nuevaContrasena) async {
+    // ERR-01: el error anterior no sobrevive a la nueva operación.
+    _errorMessage = null;
+    _setLoading(true);
+    try {
+      await _authService.restablecerContrasena(nuevaContrasena);
+      // Éxito: cerrar la sesión de recuperación silenciosamente.
+      await _cerrarSesionRecuperacion();
+      _setLoading(false);
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = AuthErrorMapper.map(e);
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _errorMessage = AuthErrorMapper.map(e);
+      _setLoading(false);
+      return false;
+    }
+  }
+
+  /// Cierra la sesión de recuperación reutilizando `_cerrandoSesion` (one-shot
+  /// de silencio para `signedOut`, matriz de eventos SES-02). Limpia el flag
+  /// `enModoRecuperacion` ANTES del signOut para que el Consumer raíz no
+  // renderice NuevaContrasenaScreen durante el cierre.
+  Future<void> _cerrarSesionRecuperacion() async {
+    _enModoRecuperacion = false;
+    _cerrandoSesion = true; // silencio del signedOut resultante
+    await _authService.signOut();
   }
 
   // ── Utilidades privadas ────────────────────────────────────────────────────
@@ -308,22 +572,5 @@ class AuthController extends ChangeNotifier {
     _isLoading = value;
     if (!value) _errorMessage = _errorMessage; // conserva el error si lo hay
     notifyListeners();
-  }
-
-  /// Traduce los mensajes de error de Supabase Auth al español.
-  String _mapAuthError(String message) {
-    if (message.contains('Invalid login credentials')) {
-      return 'Correo o contraseña incorrectos.';
-    }
-    if (message.contains('User already registered')) {
-      return 'Este correo ya está registrado.';
-    }
-    if (message.contains('Password should be at least')) {
-      return 'La contraseña debe tener al menos 6 caracteres.';
-    }
-    if (message.contains('Email not confirmed')) {
-      return 'Debes confirmar tu correo electrónico.';
-    }
-    return 'Error de autenticación: $message';
   }
 }

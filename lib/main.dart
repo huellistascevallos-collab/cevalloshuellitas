@@ -21,6 +21,8 @@ import 'domain/controllers/admin_controller.dart';
 import 'domain/controllers/productor_controller.dart';
 import 'presentation/screens/login/login_screen.dart';
 import 'presentation/screens/login/register_screen.dart';
+import 'presentation/screens/login/recuperar_contrasena_screen.dart';
+import 'presentation/screens/login/nueva_contrasena_screen.dart';
 import 'presentation/screens/usuario/home_screen.dart';
 import 'presentation/screens/usuario/mis_mascotas_screen.dart';
 import 'presentation/screens/usuario/servicios_screen.dart';
@@ -47,16 +49,15 @@ void main() async {
     debugPrint('Firebase no pudo inicializarse (PlatformException): $e');
     debugPrint('→ Verifica que google-services.json esté en android/app/');
   } on FirebaseException catch (e) {
-    debugPrint('Firebase no pudo inicializarse (FirebaseException): ${e.code} — ${e.message}');
+    debugPrint(
+      'Firebase no pudo inicializarse (FirebaseException): ${e.code} — ${e.message}',
+    );
   } catch (e) {
     debugPrint('Firebase error inesperado: $e');
   }
 
   // ── 2. Supabase (base de datos principal: usuarios, mascotas, etc.) ──────────
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   // ── 3. Notificaciones locales (banners, sonidos, vibración) ──────────────────
   await NotificacionLocalService.instance.init();
@@ -85,8 +86,13 @@ void main() async {
     MultiProvider(
       providers: [
         // AuthController gestiona login, registro y sesión activa.
+        // initAuthListener(): el listener global (SES-01…SES-07) se registra
+        // ANTES de restaurar para no perderte eventos durante el splash.
         ChangeNotifierProvider(
-            create: (_) => AuthController()..tryRestoreSession()),
+          create: (_) => AuthController()
+            ..initAuthListener()
+            ..tryRestoreSession(),
+        ),
         // MascotaController gestiona la lista de mascotas del usuario.
         ChangeNotifierProvider(create: (_) => MascotaController()),
         // NotificacionController maneja las alertas in-app (mascotas perdidas).
@@ -115,6 +121,25 @@ class MyApp extends StatelessWidget {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
+  /// Programa (post-frame) el reset de la pila de navegación a [ruta]
+  /// tras un cierre de sesión (SES-02) o enlace inválido (RST-09).
+  /// Si [forzar] es false (default), sólo navega si la pila puede
+  /// poppear (`canPop()`): en la raíz no hay nada que desapilar y el
+  /// `Consumer` raíz ya renderiza `LoginScreen` desde el estado.
+  /// Si [forzar] es true, navega incluso sin profundidad (caso en caliente
+  /// RST-09: reset forzado a `/login` aunque la pila esté en raíz).
+  static void programarResetDePila({
+    String ruta = '/login',
+    bool forzar = false,
+  }) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final nav = navigatorKey.currentState;
+      if (nav != null && (forzar || nav.canPop())) {
+        nav.pushNamedAndRemoveUntil(ruta, (route) => false);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -122,27 +147,41 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       navigatorKey: MyApp.navigatorKey,
       theme: ThemeData(
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B35)),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFFF6B35)),
         // Poppins como tipografía global de la app.
-        textTheme:
-            GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
+        textTheme: GoogleFonts.poppinsTextTheme(Theme.of(context).textTheme),
         useMaterial3: true,
       ),
       // Pantalla inicial: decidida dinámicamente según el estado de auth.
       home: Consumer<AuthController>(
         builder: (context, authController, _) {
+          // RST-09: consume-once — tras un enlace de recuperación inválido,
+          // programar reset de pila forzado a `/login`.
+          if (authController.consumirAvisoEnlaceInvalido()) {
+            MyApp.programarResetDePila(ruta: '/login', forzar: true);
+          }
+
+          // SES-02 (DP-P2-1): consume-once — tras un `signedOut`, programar
+          // el reset de pila (post-frame, sólo si hay profundidad que poppear).
+          if (authController.consumirAvisoDeCierre()) {
+            MyApp.programarResetDePila();
+          }
+
+          // RST-DP-1(a): modo recuperación tiene prioridad sobre sesión/home.
+          if (authController.enModoRecuperacion)
+            return const NuevaContrasenaScreen();
+
           // Mientras restauramos la sesión, mostramos el splash.
           if (authController.isInitializing) return const SplashScreen();
 
           if (authController.isAuthenticated) {
             final user = authController.currentUser;
-            final rol  = user?.rol ?? '';
-            final uid  = user?.id  ?? '';
+            final rol = user?.rol ?? '';
+            final uid = user?.id ?? '';
 
             // Suscripciones en tiempo real: se activan una vez montada la UI.
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              final notifCtrl  = context.read<NotificacionController>();
+              final notifCtrl = context.read<NotificacionController>();
               final mascotaCtrl = context.read<MascotaController>();
 
               // Todos los roles reciben alertas de mascotas perdidas.
@@ -165,14 +204,17 @@ class MyApp extends StatelessWidget {
       ),
       // Rutas nombradas para navegación con pushNamed.
       routes: {
-        '/login':             (context) => const LoginScreen(),
-        '/register':          (context) => const RegisterScreen(),
-        '/home':              (context) => const HomeScreen(),
-        '/admin':             (context) => const AdminScreen(),
-        '/mis_mascotas':      (context) => const MisMascotasScreen(),
-        '/servicios':         (context) => const ServiciosScreen(),
-        '/perfil':            (context) => const PerfilScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/admin': (context) => const AdminScreen(),
+        '/mis_mascotas': (context) => const MisMascotasScreen(),
+        '/servicios': (context) => const ServiciosScreen(),
+        '/perfil': (context) => const PerfilScreen(),
         '/mapa_veterinarios': (context) => const MapaVeterinariosScreen(),
+        '/nueva_contrasena': (context) => const NuevaContrasenaScreen(),
+        '/recuperar_contrasena': (context) =>
+            const RecuperarContrasenaScreen(correoInicial: ''),
       },
     );
   }
